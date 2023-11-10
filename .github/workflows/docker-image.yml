@@ -17,8 +17,10 @@ jobs:
     - name: Build the Docker image
       run: docker build . --file Dockerfile --tag my-image-name
     
+    - run: echo $DOCKER_HOST
+
     - name: Build the Docker image
       run: docker run -d --name test -v /var/run/docker.sock:/var/run/docker.sock my-image-name
-    
+
     - name: docker exec
       run: docker exec test docker ps
