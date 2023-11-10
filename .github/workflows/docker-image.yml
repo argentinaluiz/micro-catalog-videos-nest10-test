@@ -17,7 +17,7 @@ jobs:
     
     - run: cat /etc/docker/daemon.json
 
-    - run: curl http://localhost:2375/info
+    - run: docker info
     
     # - name: Build the Docker image
     #   run: docker build . --file Dockerfile --tag my-image-name
