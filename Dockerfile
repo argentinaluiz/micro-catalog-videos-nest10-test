@@ -10,7 +10,7 @@ RUN apt update && \
 ARG DOCKER_GROUP_ID
 
 ## create group if not exists
-RUN groupadd -g ${DOCKER_GROUP_ID} ; exit 0
+RUN groupadd -g ${DOCKER_GROUP_ID} docker-host-group; exit 0
 
 RUN usermod -aG ${DOCKER_GROUP_ID} node
 
