@@ -1,0 +1,15 @@
+version: '3'
+
+services:
+  app:
+    build: .
+    command: .docker/start.dev.sh
+    stop_signal: SIGKILL
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/home/node/app
+    ports:
+      - 3000:3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
