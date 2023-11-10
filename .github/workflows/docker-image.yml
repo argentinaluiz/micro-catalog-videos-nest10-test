@@ -21,4 +21,4 @@ jobs:
       run: docker run -d --name test -v /var/run/docker.sock:/var/run/docker.sock my-image-name
     
     - name: docker exec
-      run: docker exec -it test docker ps
+      run: docker exec test docker ps
