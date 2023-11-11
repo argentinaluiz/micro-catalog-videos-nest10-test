@@ -1,4 +1,3 @@
-import { AggregateRoot } from '../aggregate-root';
 import { ValueObject } from '../value-object';
 
 export type SortDirection = 'asc' | 'desc';
@@ -20,11 +19,11 @@ export class SearchParams<Filter = string> extends ValueObject {
 
   constructor(props: SearchParamsConstructorProps<Filter> = {}) {
     super();
-    this.page = props.page;
-    this.per_page = props.per_page;
-    this.sort = props.sort;
-    this.sort_dir = props.sort_dir;
-    this.filter = props.filter;
+    this.page = props.page!;
+    this.per_page = props.per_page!;
+    this.sort = props.sort!;
+    this.sort_dir = props.sort_dir!;
+    this.filter = props.filter!;
   }
 
   get page() {
@@ -72,7 +71,7 @@ export class SearchParams<Filter = string> extends ValueObject {
     return this._sort_dir;
   }
 
-  private set sort_dir(value: string | null) {
+  private set sort_dir(value: SortDirection | null) {
     if (!this.sort) {
       this._sort_dir = null;
       return;
@@ -90,40 +89,5 @@ export class SearchParams<Filter = string> extends ValueObject {
       value === null || value === undefined || (value as unknown) === ''
         ? null
         : (`${value}` as any);
-  }
-}
-
-type SearchResultProps<A extends AggregateRoot> = {
-  items: A[];
-  total: number;
-  current_page: number;
-  per_page: number;
-};
-
-export class SearchResult<A extends AggregateRoot = AggregateRoot> {
-  readonly items: A[];
-  readonly total: number;
-  readonly current_page: number;
-  readonly per_page: number;
-  readonly last_page: number;
-
-  constructor(props: SearchResultProps<A>) {
-    this.items = props.items;
-    this.total = props.total;
-    this.current_page = props.current_page;
-    this.per_page = props.per_page;
-    this.last_page = Math.ceil(this.total / this.per_page);
-  }
-
-  toJSON(forceAggregate = false) {
-    return {
-      items: forceAggregate
-        ? this.items.map((item) => item.toJSON())
-        : this.items,
-      total: this.total,
-      current_page: this.current_page,
-      per_page: this.per_page,
-      last_page: this.last_page,
-    };
   }
 }

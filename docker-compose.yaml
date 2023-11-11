@@ -7,9 +7,11 @@ services:
     stop_signal: SIGKILL
     stdin_open: true
     tty: true
+    env_file:
+      - ./envs/.env
     volumes:
       - .:/home/node/app
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     ports:
       - 3000:3000
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    

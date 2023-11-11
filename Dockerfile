@@ -7,7 +7,7 @@ RUN apt update && \
     curl -fsSL https://get.docker.com -o get-docker.sh && \
     sh ./get-docker.sh
 
-ARG DOCKER_GROUP_ID
+ENV DOCKER_GROUP_ID 999
 
 ## create group if not exists
 RUN groupadd -g ${DOCKER_GROUP_ID} docker-host-group; exit 0

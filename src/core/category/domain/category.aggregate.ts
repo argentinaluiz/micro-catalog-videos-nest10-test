@@ -6,7 +6,7 @@ import { AggregateRoot } from '../../shared/domain/aggregate-root';
 export type CategoryConstructorProps = {
   category_id?: CategoryId;
   name: string;
-  description?: string;
+  description?: string | null;
   is_active?: boolean;
   created_at?: Date;
 };

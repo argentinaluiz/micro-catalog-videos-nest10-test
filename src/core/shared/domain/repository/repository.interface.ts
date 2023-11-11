@@ -2,19 +2,19 @@ import { AggregateRoot } from '../aggregate-root';
 import { ValueObject } from '../value-object';
 import { SearchParams, SearchResult } from './search-params';
 
-export interface IRepository<A extends AggregateRoot, ID extends ValueObject> {
-  insert(entity: A): Promise<void>;
-  bulkInsert(entities: A[]): Promise<void>;
-  findById(id: ID): Promise<A>;
-  findAll(): Promise<A[]>;
-  findByIds(ids: ID[]): Promise<A[]>;
+export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
+  insert(entity: E): Promise<void>;
+  bulkInsert(entities: E[]): Promise<void>;
+  findById(id: ID): Promise<E | null>;
+  findAll(): Promise<E[]>;
+  findByIds(ids: ID[]): Promise<E[]>;
   existsById(ids: ID[]): Promise<{
     exists: ID[];
     not_exists: ID[];
   }>;
-  update(entity: A): Promise<void>;
+  update(entity: E): Promise<void>;
   delete(id: ID): Promise<void>;
-  getEntity(): new (...args: any[]) => A;
+  getEntity(): new (...args: any[]) => E;
 }
 
 //category.props.name
