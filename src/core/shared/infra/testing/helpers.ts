@@ -5,12 +5,12 @@ import debug from 'debug';
 import crypto from 'crypto';
 const esDebug = debug('eshelper');
 
-type ElasticSearchHelper = {
+type SetupElasticSearchHelper = {
   deleteIndex: boolean;
 };
 
-export function elasticSearchHelper(
-  options: ElasticSearchHelper = { deleteIndex: true },
+export function setupElasticSearch(
+  options: SetupElasticSearchHelper = { deleteIndex: true },
 ) {
   let _container;
   let _indexName;

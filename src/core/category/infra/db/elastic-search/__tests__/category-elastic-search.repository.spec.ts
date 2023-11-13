@@ -4,14 +4,14 @@ import {
 } from '../category-elastic-search';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
-import { elasticSearchHelper } from '../../../../../shared/infra/testing/helpers';
+import { setupElasticSearch } from '../../../../../shared/infra/testing/helpers';
 import {
   CategorySearchParams,
   CategorySearchResult,
 } from '../../../../domain/category.repository';
 
 describe('CategoryElasticSearchRepository Integration Tests', () => {
-  const esHelper = elasticSearchHelper();
+  const esHelper = setupElasticSearch();
   let repository: CategoryElasticSearchRepository;
 
   beforeEach(async () => {

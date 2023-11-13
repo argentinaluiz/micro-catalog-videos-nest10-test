@@ -3,37 +3,38 @@ import { InvalidArgumentError } from '../errors/invalid-argument.error';
 import { NotFoundError } from '../errors/not-found.error';
 import { ValueObject } from '../value-object';
 import { IRepository, ISearchableRepository } from './repository.interface';
-import { SearchParams, SearchResult, SortDirection } from './search-params';
+import { SearchParams, SortDirection } from './search-params';
+import { SearchResult } from './search-result';
 import { IUnitOfWork } from './unit-of-work.interface';
 
 export abstract class InMemoryRepository<
-  A extends AggregateRoot,
+  E extends AggregateRoot,
   ID extends ValueObject,
-> implements IRepository<A, ID>
+> implements IRepository<E, ID>
 {
-  items: A[] = [];
+  items: E[] = [];
 
   constructor(private uow: IUnitOfWork) {}
 
-  async insert(entity: A): Promise<void> {
+  async insert(entity: E): Promise<void> {
     this.items.push(entity);
     this.uow.addAggregateRoot(entity);
   }
 
-  async bulkInsert(entities: A[]): Promise<void> {
+  async bulkInsert(entities: E[]): Promise<void> {
     this.items.push(...entities);
     entities.forEach((entity) => this.uow.addAggregateRoot(entity));
   }
 
-  async findById(entityId: ID): Promise<A> {
+  async findById(entityId: ID): Promise<E | null> {
     return this._get(entityId);
   }
 
-  async findAll(): Promise<A[]> {
+  async findAll(): Promise<E[]> {
     return this.items;
   }
 
-  async findByIds(ids: ID[]): Promise<A[]> {
+  async findByIds(ids: ID[]): Promise<E[]> {
     //avoid to return repeated items
     return this.items.filter((entity) => {
       return ids.some((id) => entity.entity_id.equals(id));
@@ -66,7 +67,7 @@ export abstract class InMemoryRepository<
     };
   }
 
-  async update(entity: A): Promise<void> {
+  async update(entity: E): Promise<void> {
     const hasFound = await this._get(entity.entity_id as ID);
     if (!hasFound) {
       throw new NotFoundError(entity.entity_id, this.getEntity());
@@ -87,25 +88,25 @@ export abstract class InMemoryRepository<
     this.items.splice(indexFound, 1);
   }
 
-  protected async _get(id: ID): Promise<A> {
+  protected async _get(id: ID): Promise<E | null> {
     const item = this.items.find((i) => i.entity_id.equals(id));
     return typeof item === 'undefined' ? null : item;
   }
 
-  abstract getEntity(): new (...args: any[]) => A;
+  abstract getEntity(): new (...args: any[]) => E;
 }
 
 export abstract class InMemorySearchableRepository<
-    A extends AggregateRoot,
+    E extends AggregateRoot,
     AggregateId extends ValueObject,
     Filter = string,
   >
-  extends InMemoryRepository<A, AggregateId>
-  implements ISearchableRepository<A, AggregateId, Filter>
+  extends InMemoryRepository<E, AggregateId>
+  implements ISearchableRepository<E, AggregateId, Filter>
 {
   sortableFields: string[] = [];
 
-  async search(props: SearchParams<Filter>): Promise<SearchResult<A>> {
+  async search(props: SearchParams<Filter>): Promise<SearchResult<E>> {
     const itemsFiltered = await this.applyFilter(this.items, props.filter);
     const itemsSorted = await this.applySort(
       itemsFiltered,
@@ -126,16 +127,16 @@ export abstract class InMemorySearchableRepository<
   }
 
   protected abstract applyFilter(
-    items: A[],
+    items: E[],
     filter: Filter | null,
-  ): Promise<A[]>;
+  ): Promise<E[]>;
 
   protected async applySort(
-    items: A[],
+    items: E[],
     sort: string | null,
     sort_dir: SortDirection | null,
-    custom_getter?: (sort: string, item: A) => any,
-  ): Promise<A[]> {
+    custom_getter?: (sort: string, item: E) => any,
+  ): Promise<E[]> {
     if (!sort || !this.sortableFields.includes(sort)) {
       return items;
     }
@@ -156,10 +157,10 @@ export abstract class InMemorySearchableRepository<
   }
 
   protected async applyPaginate(
-    items: A[],
+    items: E[],
     page: SearchParams['page'],
     per_page: SearchParams['per_page'],
-  ): Promise<A[]> {
+  ): Promise<E[]> {
     const start = (page - 1) * per_page; // 1 * 15 = 15
     const limit = start + per_page; // 15 + 15 = 30
     return items.slice(start, limit);

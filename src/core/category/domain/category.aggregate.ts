@@ -13,7 +13,7 @@ export type CategoryConstructorProps = {
 
 export type CategoryCreateCommand = {
   name: string;
-  description?: string;
+  description?: string | null;
   is_active?: boolean;
 };
 

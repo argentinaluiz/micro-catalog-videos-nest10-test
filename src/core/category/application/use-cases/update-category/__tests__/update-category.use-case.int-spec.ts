@@ -1,21 +1,21 @@
 import { UpdateCategoryUseCase } from '../update-category.use-case';
-import { setupSequelize } from '../../../../../shared/infra/testing/helpers';
+import { setupElasticSearch } from '../../../../../shared/infra/testing/helpers';
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
-import {
-  CategoryModel,
-  CategorySequelizeRepository,
-} from '../../../../infra/db/sequelize/category-sequelize';
 import { UpdateCategoryInput } from '../update-category.input';
+import { CategoryElasticSearchRepository } from '../../../../infra/db/elastic-search/category-elastic-search';
 
 describe('UpdateCategoryUseCase Integration Tests', () => {
   let useCase: UpdateCategoryUseCase;
-  let repository: CategorySequelizeRepository;
+  let repository: CategoryElasticSearchRepository;
 
-  setupSequelize({ models: [CategoryModel] });
+  const esHelper = setupElasticSearch();
 
   beforeEach(() => {
-    repository = new CategorySequelizeRepository(CategoryModel);
+    repository = new CategoryElasticSearchRepository(
+      esHelper.esClient,
+      esHelper.indexName,
+    );
     useCase = new UpdateCategoryUseCase(repository);
   });
 
@@ -30,7 +30,7 @@ describe('UpdateCategoryUseCase Integration Tests', () => {
 
   it('should update a category', async () => {
     const entity = Category.fake().aCategory().build();
-    repository.insert(entity);
+    await repository.insert(entity);
 
     let output = await useCase.execute(
       new UpdateCategoryInput({

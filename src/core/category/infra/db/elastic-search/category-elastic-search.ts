@@ -13,7 +13,7 @@ import {
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
 
-const CATEGORY_DOCUMENT_TYPE_NAME = 'Category';
+export const CATEGORY_DOCUMENT_TYPE_NAME = 'Category';
 
 export type CategoryDocument = {
   category_name: string;
@@ -320,7 +320,7 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
       sort:
         props.sort && this.sortableFieldsMap.hasOwnProperty(props.sort)
           ? { [this.sortableFieldsMap[props.sort]]: props.sort_dir! }
-          : undefined,
+          : { created_at: 'desc' },
       query,
     });
     const docs = result.hits.hits as GetGetResult<CategoryDocument>[];

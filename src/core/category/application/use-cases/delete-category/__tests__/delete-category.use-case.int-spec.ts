@@ -1,20 +1,20 @@
 import { DeleteCategoryUseCase } from '../delete-category.use-case';
-import { setupSequelize } from '../../../../../shared/infra/testing/helpers';
+import { setupElasticSearch } from '../../../../../shared/infra/testing/helpers';
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
-import {
-  CategoryModel,
-  CategorySequelizeRepository,
-} from '../../../../infra/db/sequelize/category-sequelize';
+import { CategoryElasticSearchRepository } from '../../../../infra/db/elastic-search/category-elastic-search';
 
 describe('DeleteCategoryUseCase Integration Tests', () => {
   let useCase: DeleteCategoryUseCase;
-  let repository: CategorySequelizeRepository;
+  let repository: CategoryElasticSearchRepository;
 
-  setupSequelize({ models: [CategoryModel] });
+  const esHelper = setupElasticSearch();
 
   beforeEach(() => {
-    repository = new CategorySequelizeRepository(CategoryModel);
+    repository = new CategoryElasticSearchRepository(
+      esHelper.esClient,
+      esHelper.indexName,
+    );
     useCase = new DeleteCategoryUseCase(repository);
   });
 
@@ -31,7 +31,7 @@ describe('DeleteCategoryUseCase Integration Tests', () => {
     await useCase.execute({
       id: category.category_id.id,
     });
-    const noHasModel = await CategoryModel.findByPk(category.category_id.id);
-    expect(noHasModel).toBeNull();
+    const noEntity = await repository.findById(category.category_id);
+    expect(noEntity).toBeNull();
   });
 });

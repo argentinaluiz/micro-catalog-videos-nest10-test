@@ -2,7 +2,8 @@ import { UnitOfWorkFakeInMemory } from '../../../infra/db/in-memory/fake-unit-wo
 import { AggregateRoot } from '../../aggregate-root';
 import { Uuid } from '../../value-objects/uuid.vo';
 import { InMemorySearchableRepository } from '../in-memory.repository';
-import { SearchParams, SearchResult } from '../search-params';
+import { SearchParams } from '../search-params';
+import { SearchResult } from '../search-result';
 
 type StubAggregateConstructorProps = {
   entity_id?: Uuid;

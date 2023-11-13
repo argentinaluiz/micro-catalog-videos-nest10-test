@@ -1,20 +1,20 @@
 import { GetCategoryUseCase } from '../get-category.use-case';
-import { setupSequelize } from '../../../../../shared/infra/testing/helpers';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
-import {
-  CategoryModel,
-  CategorySequelizeRepository,
-} from '../../../../infra/db/sequelize/category-sequelize';
+import { CategoryElasticSearchRepository } from '../../../../infra/db/elastic-search/category-elastic-search';
+import { setupElasticSearch } from '../../../../../shared/infra/testing/helpers';
 
 describe('GetCategoryUseCase Integration Tests', () => {
   let useCase: GetCategoryUseCase;
-  let repository: CategorySequelizeRepository;
+  let repository: CategoryElasticSearchRepository;
 
-  setupSequelize({ models: [CategoryModel] });
+  const esHelper = setupElasticSearch();
 
   beforeEach(() => {
-    repository = new CategorySequelizeRepository(CategoryModel);
+    repository = new CategoryElasticSearchRepository(
+      esHelper.esClient,
+      esHelper.indexName,
+    );
     useCase = new GetCategoryUseCase(repository);
   });
 
