@@ -7,5 +7,6 @@ export const esMapping: MappingTypeMapping = {
     description: { type: 'text' },
     is_active: { type: 'boolean' },
     created_at: { type: 'date' },
+    deleted_at: { type: 'date' },
   },
 };

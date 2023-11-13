@@ -1,8 +1,17 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { ElasticsearchContainer } from '@testcontainers/elasticsearch';
 import { esMapping } from '../db/elastic-search/es-mapping';
+import debug from 'debug';
+import crypto from 'crypto';
+const esDebug = debug('eshelper');
 
-export function elasticSearchHelper() {
+type ElasticSearchHelper = {
+  deleteIndex: boolean;
+};
+
+export function elasticSearchHelper(
+  options: ElasticSearchHelper = { deleteIndex: true },
+) {
   let _container;
   let _indexName;
   let _esClient: ElasticsearchService;
@@ -24,7 +33,8 @@ export function elasticSearchHelper() {
   }, 20000);
 
   beforeEach(async () => {
-    _indexName = 'test_' + Math.floor(Math.random() * 1000000);
+    _indexName = 'test_' + crypto.randomInt(0, 1000000);
+    esDebug('indexName: %s', _indexName);
     await _esClient.indices.create({
       index: _indexName,
       body: {
@@ -34,6 +44,9 @@ export function elasticSearchHelper() {
   });
 
   afterEach(async () => {
+    if (!options.deleteIndex) {
+      return;
+    }
     await _esClient.indices.delete({ index: _indexName });
   });
 
