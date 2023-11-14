@@ -31,8 +31,8 @@ export class GoogleCloudStorage implements IStorage {
     ]);
     return {
       data: content[0],
-      mime_type: metadata[0].contentType,
-      name: metadata[0].name,
+      mime_type: metadata[0].contentType!,
+      name: metadata[0].name!,
     };
   }
 }

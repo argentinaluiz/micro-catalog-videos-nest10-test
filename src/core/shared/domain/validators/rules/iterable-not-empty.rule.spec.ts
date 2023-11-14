@@ -11,28 +11,28 @@ describe('IterableNotEmpty Rule Tests', () => {
     const stubDto = new StubDtoTest();
     let errors = validateSync(stubDto);
     expect(errors.length).toBe(1);
-    expect(errors[0].constraints.IterableNotEmpty).toBe(
+    expect(errors[0].constraints!.IterableNotEmpty).toBe(
       'numbers should not be empty',
     );
 
-    stubDto.numbers = null;
+    stubDto.numbers = null as any;
     errors = validateSync(stubDto);
     expect(errors.length).toBe(1);
-    expect(errors[0].constraints.IterableNotEmpty).toBe(
+    expect(errors[0].constraints!.IterableNotEmpty).toBe(
       'numbers should not be empty',
     );
 
-    stubDto.numbers = undefined;
+    stubDto.numbers = undefined as any;
     errors = validateSync(stubDto);
     expect(errors.length).toBe(1);
-    expect(errors[0].constraints.IterableNotEmpty).toBe(
+    expect(errors[0].constraints!.IterableNotEmpty).toBe(
       'numbers should not be empty',
     );
 
     stubDto.numbers = 0 as any;
     errors = validateSync(stubDto);
     expect(errors.length).toBe(1);
-    expect(errors[0].constraints.IterableNotEmpty).toBe(
+    expect(errors[0].constraints!.IterableNotEmpty).toBe(
       'numbers should not be empty',
     );
   });
@@ -47,7 +47,7 @@ describe('IterableNotEmpty Rule Tests', () => {
     stubDto.number = 1;
     const errors = validateSync(stubDto);
     expect(errors.length).toBe(1);
-    expect(errors[0].constraints.IterableNotEmpty).toBe(
+    expect(errors[0].constraints!.IterableNotEmpty).toBe(
       'number should not be empty',
     );
   });

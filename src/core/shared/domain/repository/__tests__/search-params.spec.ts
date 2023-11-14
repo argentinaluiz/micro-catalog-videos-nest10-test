@@ -1,4 +1,5 @@
-import { SearchParams, SearchResult } from '../search-params';
+import { SearchParams } from '../search-params';
+import { SearchResult } from '../search-result';
 
 describe('Search Unit Tests', () => {
   describe('SearchParams Unit Tests', () => {

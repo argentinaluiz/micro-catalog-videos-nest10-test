@@ -56,10 +56,10 @@ describe('InMemoryRepository Unit Tests', () => {
     await repository.insert(entity);
 
     entityFound = await repository.findById(entity.entity_id);
-    expect(entity.toJSON()).toStrictEqual(entityFound.toJSON());
+    expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
 
     entityFound = await repository.findById(entity.entity_id);
-    expect(entity.toJSON()).toStrictEqual(entityFound.toJSON());
+    expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
   });
 
   it('should returns all entities', async () => {

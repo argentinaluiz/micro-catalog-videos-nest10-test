@@ -22,19 +22,17 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
   });
 
   test('should inserts a new entity', async () => {
-    let category = Category.create({ name: 'Movie' });
-    await repository.insert(category);
-    let entity = await repository.findById(category.category_id);
-    expect(entity!.toJSON()).toStrictEqual(category.toJSON());
-
-    category = Category.create({
+    const category = Category.create({
+      category_id: new CategoryId(),
       name: 'Movie',
       description: 'some description',
       is_active: false,
+      created_at: new Date(),
     });
     await repository.insert(category);
-    entity = await repository.findById(category.category_id);
+    const entity = await repository.findById(category.category_id);
     expect(entity!.toJSON()).toStrictEqual(category.toJSON());
+
     const document = await esHelper.esClient.get({
       index: esHelper.indexName,
       id: category.category_id.id,
@@ -67,7 +65,13 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
   });
 
   it('should delete a entity', async () => {
-    const entity = new Category({ name: 'Movie' });
+    const entity = new Category({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: 'some description',
+      is_active: false,
+      created_at: new Date(),
+    });
     await repository.insert(entity);
 
     await repository.delete(entity.category_id);
@@ -86,7 +90,13 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     let entityFound = await repository.findById(new CategoryId());
     expect(entityFound).toBeNull();
 
-    const entity = Category.create({ name: 'Movie' });
+    const entity = Category.create({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: 'some description',
+      is_active: false,
+      created_at: new Date(),
+    });
     await repository.insert(entity);
     entityFound = await repository.findById(entity.category_id);
     expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
@@ -96,7 +106,13 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
   });
 
   it('should return all categories', async () => {
-    const entity = new Category({ name: 'Movie' });
+    const entity = new Category({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: 'some description',
+      is_active: false,
+      created_at: new Date(),
+    });
     await repository.insert(entity);
     let entities = await repository.findAll();
     expect(entities).toHaveLength(1);

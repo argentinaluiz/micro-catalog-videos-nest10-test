@@ -37,19 +37,11 @@ describe('ListCategoriesUseCase Integration Tests', () => {
 
   it('should returns output using pagination, sort and filter', async () => {
     const categories = [
-      new Category({ name: 'a' }),
-      new Category({
-        name: 'AAA',
-      }),
-      new Category({
-        name: 'AaA',
-      }),
-      new Category({
-        name: 'b',
-      }),
-      new Category({
-        name: 'c',
-      }),
+      Category.fake().aCategory().withName('a').build(),
+      Category.fake().aCategory().withName('AAA').build(),
+      Category.fake().aCategory().withName('AaA').build(),
+      Category.fake().aCategory().withName('b').build(),
+      Category.fake().aCategory().withName('c').build(),
     ];
     await repository.bulkInsert(categories);
 

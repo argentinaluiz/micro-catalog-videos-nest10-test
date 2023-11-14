@@ -56,9 +56,9 @@ describe('CategoryInMemoryRepository', () => {
 
   it('should sort by name', async () => {
     const items = [
-      Category.create({ name: 'c' }),
-      Category.create({ name: 'b' }),
-      Category.create({ name: 'a' }),
+      Category.fake().aCategory().withName('c').build(),
+      Category.fake().aCategory().withName('b').build(),
+      Category.fake().aCategory().withName('a').build(),
     ];
 
     let itemsSorted = await repository['applySort'](items, 'name', 'asc');

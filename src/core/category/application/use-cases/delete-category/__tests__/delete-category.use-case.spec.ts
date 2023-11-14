@@ -22,7 +22,15 @@ describe('DeleteCategoryUseCase Unit Tests', () => {
   });
 
   it('should delete a category', async () => {
-    const items = [new Category({ name: 'test 1' })];
+    const items = [
+      new Category({
+        category_id: new CategoryId(),
+        name: 'Movie',
+        description: 'some description',
+        is_active: true,
+        created_at: new Date(),
+      }),
+    ];
     repository.items = items;
     await useCase.execute({
       id: items[0].category_id.id,

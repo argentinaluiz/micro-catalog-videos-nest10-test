@@ -30,7 +30,7 @@ describe('ListCategoriesUseCase Unit Tests', () => {
       last_page: 1,
     });
 
-    const entity = Category.create({ name: 'Movie' });
+    const entity = Category.fake().aCategory().build();
     result = new CategorySearchResult({
       items: [entity],
       total: 1,
@@ -50,11 +50,12 @@ describe('ListCategoriesUseCase Unit Tests', () => {
 
   it('should return output sorted by created_at when input param is empty', async () => {
     const items = [
-      new Category({ name: 'test 1' }),
-      new Category({
-        name: 'test 2',
-        created_at: new Date(new Date().getTime() + 100),
-      }),
+      Category.fake().aCategory().withName('test 1').build(),
+      Category.fake()
+        .aCategory()
+        .withName('test 2')
+        .withCreatedAt(new Date(new Date().getTime() + 100))
+        .build(),
     ];
     repository.items = items;
 
@@ -70,19 +71,11 @@ describe('ListCategoriesUseCase Unit Tests', () => {
 
   it('should return output using pagination, sort and filter', async () => {
     const items = [
-      new Category({ name: 'a' }),
-      new Category({
-        name: 'AAA',
-      }),
-      new Category({
-        name: 'AaA',
-      }),
-      new Category({
-        name: 'b',
-      }),
-      new Category({
-        name: 'c',
-      }),
+      Category.fake().aCategory().withName('a').build(),
+      Category.fake().aCategory().withName('AAA').build(),
+      Category.fake().aCategory().withName('AaA').build(),
+      Category.fake().aCategory().withName('b').build(),
+      Category.fake().aCategory().withName('c').build(),
     ];
     repository.items = items;
 

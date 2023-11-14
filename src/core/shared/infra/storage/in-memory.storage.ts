@@ -18,7 +18,10 @@ export class InMemoryStorage implements IStorage {
   async get(
     id: string,
   ): Promise<{ data: Buffer; mime_type: string; name: string }> {
-    const { data, mime_type } = this.storage.get(id);
-    return { data, mime_type, name: id };
+    const file = this.storage.get(id);
+    if (!file) {
+      throw new Error(`File ${id} not found`);
+    }
+    return { data: file.data, mime_type: file.mime_type, name: id };
   }
 }

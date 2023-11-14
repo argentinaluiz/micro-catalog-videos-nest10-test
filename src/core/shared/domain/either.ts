@@ -1,14 +1,14 @@
 type Flatten<Type> = Type extends Array<infer Item> ? Item : Type;
 
-type IteratorValue<Ok, Error> = Ok | Error;
+type Value<Ok, Error> = Ok | Error;
 
-export class Either<Ok, Error = any>
-  implements Iterable<IteratorValue<Ok, Error>>
+export class Either<Ok = unknown, ErrorType = Error>
+  implements Iterable<Value<Ok, ErrorType>>
 {
   private _ok: Ok;
-  private _error: Error;
+  private _error: ErrorType;
 
-  private constructor(ok: Ok, error: Error) {
+  private constructor(ok: Ok, error: ErrorType) {
     this._ok = ok;
     this._error = error;
   }
@@ -29,19 +29,9 @@ export class Either<Ok, Error = any>
     return this.error !== null;
   }
 
-  static of<Ok = any>(value: Ok): Either<Ok> {
-    return Either.ok(value);
-  }
-
-  static ok<T>(value: T): Either<T, null> {
-    return new Either(value, null);
-  }
-
-  static fail<T>(error: T): Either<null, T> {
-    return new Either(null, error);
-  }
-
-  static safe<Ok, Error = any>(fn: () => Ok): Either<Ok, Error> {
+  static safe<Ok = unknown, ErrorType = Error>(
+    fn: () => Ok,
+  ): Either<Ok, ErrorType> {
     try {
       return Either.ok(fn());
     } catch (e) {
@@ -49,11 +39,27 @@ export class Either<Ok, Error = any>
     }
   }
 
+  static of<Ok, ErrorType = Error>(value: Ok): Either<Ok, ErrorType> {
+    return Either.ok(value);
+  }
+
+  static ok<T, ErrorType = Error>(value: T): Either<T, ErrorType> {
+    //@ts-expect-error  - error can be null
+    return new Either(value, null);
+  }
+
+  static fail<ErrorType = Error, Ok = unknown>(
+    error: ErrorType,
+  ): Either<Ok, ErrorType> {
+    //@ts-expect-error  - ok can be null
+    return new Either(null, error);
+  }
+
   /**
    * This method is used to transform the value into a new value.
    * The new value always will be a ok.
    */
-  map<NewOk>(fn: (value: Ok) => NewOk): Either<NewOk, Error> {
+  map<NewOk>(fn: (value: Ok) => NewOk): Either<NewOk, ErrorType> {
     if (this.isOk()) {
       return Either.ok(fn(this.ok));
     }
@@ -64,13 +70,13 @@ export class Either<Ok, Error = any>
    * This method is used to create a new Either from the value of an Either.
    * The new Either can be a fail or a ok.
    */
-  chain<NewOk, NewError = any>(
+  chain<NewOk, NewError = Error>(
     fn: (value: Ok) => Either<NewOk, NewError>,
-  ): Either<NewOk, Error | NewError> {
+  ): Either<NewOk, ErrorType | NewError> {
     if (this.isOk()) {
       return fn(this.ok);
     }
-    return Either.fail<Error>(this.error);
+    return Either.fail(this.error);
   }
 
   /**
@@ -95,15 +101,15 @@ export class Either<Ok, Error = any>
       }
       return Either.ok(result.map((r) => r.ok)) as any;
     }
-    return Either.fail<Error>(this.error) as any;
+    return Either.fail<ErrorType>(this.error) as any;
   }
 
-  asArray(): [Ok, Error] {
+  asArray(): [Ok, ErrorType] {
     return [this.ok, this.error];
   }
 
-  [Symbol.iterator](): Iterator<IteratorValue<Ok, Error>, any, undefined> {
-    return new EitherIterator<Ok, Error>({
+  [Symbol.iterator](): Iterator<Value<Ok, ErrorType>, any, undefined> {
+    return new EitherIterator<Ok, ErrorType>({
       ok: this.ok,
       error: this.error,
     });
@@ -111,8 +117,7 @@ export class Either<Ok, Error = any>
 }
 
 class EitherIterator<Ok, Error>
-  implements
-    Iterator<IteratorValue<Ok, Error>, IteratorValue<Ok, Error>, undefined>
+  implements Iterator<Value<Ok, Error>, Value<Ok, Error>, undefined>
 {
   private _value: { ok: Ok; error: Error };
   private index = 0;
@@ -121,10 +126,7 @@ class EitherIterator<Ok, Error>
     this._value = value;
   }
 
-  next(): IteratorResult<
-    IteratorValue<Ok, Error>,
-    IteratorValue<Ok, Error> | undefined
-  > {
+  next(): IteratorResult<Value<Ok, Error>> {
     if (this.index === 0) {
       this.index++;
       return {

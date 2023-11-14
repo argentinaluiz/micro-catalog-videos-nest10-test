@@ -21,7 +21,15 @@ describe('GetCategoryUseCase Unit Tests', () => {
   });
 
   it('should returns a category', async () => {
-    const items = [Category.create({ name: 'Movie' })];
+    const items = [
+      Category.create({
+        category_id: new CategoryId(),
+        name: 'Movie',
+        description: 'some description',
+        is_active: true,
+        created_at: new Date(),
+      }),
+    ];
     repository.items = items;
     const spyFindById = jest.spyOn(repository, 'findById');
     const output = await useCase.execute({ id: items[0].category_id.id });
@@ -29,7 +37,7 @@ describe('GetCategoryUseCase Unit Tests', () => {
     expect(output).toStrictEqual({
       id: items[0].category_id.id,
       name: 'Movie',
-      description: null,
+      description: 'some description',
       is_active: true,
       created_at: items[0].created_at,
     });

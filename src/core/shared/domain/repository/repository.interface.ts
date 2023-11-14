@@ -1,6 +1,7 @@
 import { AggregateRoot } from '../aggregate-root';
 import { ValueObject } from '../value-object';
-import { SearchParams, SearchResult } from './search-params';
+import { SearchParams } from './search-params';
+import { SearchResult } from './search-result';
 
 export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
   insert(entity: E): Promise<void>;
