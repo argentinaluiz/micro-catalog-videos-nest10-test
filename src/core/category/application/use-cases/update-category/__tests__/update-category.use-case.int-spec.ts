@@ -23,7 +23,13 @@ describe('UpdateCategoryUseCase Integration Tests', () => {
     const categoryId = new CategoryId();
     await expect(() =>
       useCase.execute(
-        new UpdateCategoryInput({ id: categoryId.id, name: 'fake' }),
+        new UpdateCategoryInput({
+          id: categoryId.id,
+          name: 'fake',
+          description: null,
+          is_active: true,
+          created_at: new Date(),
+        }),
       ),
     ).rejects.toThrow(new NotFoundError(categoryId.id, Category));
   });
@@ -32,145 +38,22 @@ describe('UpdateCategoryUseCase Integration Tests', () => {
     const entity = Category.fake().aCategory().build();
     await repository.insert(entity);
 
-    let output = await useCase.execute(
+    const new_created_at = new Date();
+    const output = await useCase.execute(
       new UpdateCategoryInput({
         id: entity.category_id.id,
         name: 'test',
+        description: 'description changed',
+        is_active: false,
+        created_at: new_created_at,
       }),
     );
     expect(output).toStrictEqual({
       id: entity.category_id.id,
       name: 'test',
-      description: entity.description,
-      is_active: true,
-      created_at: entity.created_at,
+      description: 'description changed',
+      is_active: false,
+      created_at: new_created_at,
     });
-
-    type Arrange = {
-      input: {
-        id: string;
-        name: string;
-        description?: null | string;
-        is_active?: boolean;
-      };
-      expected: {
-        id: string;
-        name: string;
-        description: null | string;
-        is_active: boolean;
-        created_at: Date;
-      };
-    };
-    const arrange: Arrange[] = [
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-          is_active: true,
-          created_at: entity.created_at,
-        },
-      },
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-          is_active: true,
-          created_at: entity.created_at,
-        },
-      },
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-          is_active: false,
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-          is_active: false,
-          created_at: entity.created_at,
-        },
-      },
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-          is_active: false,
-          created_at: entity.created_at,
-        },
-      },
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-          is_active: true,
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: 'some description',
-          is_active: true,
-          created_at: entity.created_at,
-        },
-      },
-      {
-        input: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: null,
-          is_active: false,
-        },
-        expected: {
-          id: entity.category_id.id,
-          name: 'test',
-          description: null,
-          is_active: false,
-          created_at: entity.created_at,
-        },
-      },
-    ];
-
-    for (const i of arrange) {
-      output = await useCase.execute({
-        id: i.input.id,
-        ...(i.input.name && { name: i.input.name }),
-        ...('description' in i.input && { description: i.input.description }),
-        ...('is_active' in i.input && { is_active: i.input.is_active }),
-      });
-      const entityUpdated = await repository.findById(
-        new CategoryId(i.input.id),
-      );
-      expect(output).toStrictEqual({
-        id: entity.category_id.id,
-        name: i.expected.name,
-        description: i.expected.description,
-        is_active: i.expected.is_active,
-        created_at: entityUpdated.created_at,
-      });
-      expect(entityUpdated.toJSON()).toStrictEqual({
-        category_id: entity.category_id.id,
-        name: i.expected.name,
-        description: i.expected.description,
-        is_active: i.expected.is_active,
-        created_at: entityUpdated.created_at,
-      });
-    }
   });
 });

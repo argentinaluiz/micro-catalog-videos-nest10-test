@@ -7,11 +7,13 @@ services:
     stop_signal: SIGKILL
     stdin_open: true
     tty: true
+    privileged: true
     env_file:
       - ./envs/.env
     volumes:
       - .:/home/node/app
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ~/.docker/config.json:/home/node/.docker/config.json:ro
     ports:
-      - 3000:3000
+      - 3001:3000
     

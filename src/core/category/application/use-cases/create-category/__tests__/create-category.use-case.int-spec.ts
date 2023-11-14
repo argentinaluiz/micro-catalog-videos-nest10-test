@@ -20,59 +20,30 @@ describe('CreateCategoryUseCase Integration Tests', () => {
   });
 
   it('should create a category', async () => {
-    let output = await useCase.execute(
-      new CreateCategoryInput({ name: 'test' }),
-    );
-    let entity = await repository.findById(new CategoryId(output.id));
-    expect(output).toStrictEqual({
-      id: entity!.category_id.id,
-      name: 'test',
-      description: null,
-      is_active: true,
-      created_at: entity!.created_at,
-    });
-
-    output = await useCase.execute(
+    const uuid = '4e9e2e4e-0d1a-4a4b-8c0a-5b0e4e4e4e4e';
+    const created_at = new Date();
+    const output = await useCase.execute(
       new CreateCategoryInput({
+        category_id: '4e9e2e4e-0d1a-4a4b-8c0a-5b0e4e4e4e4e',
         name: 'test',
         description: 'some description',
+        is_active: false,
+        created_at: created_at,
       }),
     );
-    entity = await repository.findById(new CategoryId(output.id));
+    const entity = await repository.findById(new CategoryId(uuid));
     expect(output).toStrictEqual({
-      id: entity!.category_id.id,
-      name: 'test',
-      description: 'some description',
-      is_active: true,
-      created_at: entity!.created_at,
-    });
-
-    output = await useCase.execute({
-      name: 'test',
-      description: 'some description',
-      is_active: true,
-    });
-    entity = await repository.findById(new CategoryId(output.id));
-    expect(output).toStrictEqual({
-      id: entity!.category_id.id,
-      name: 'test',
-      description: 'some description',
-      is_active: true,
-      created_at: entity!.created_at,
-    });
-
-    output = await useCase.execute({
+      id: uuid,
       name: 'test',
       description: 'some description',
       is_active: false,
+      created_at,
     });
-    entity = await repository.findById(new CategoryId(output.id));
-    expect(output).toStrictEqual({
-      id: entity!.category_id.id,
+    expect(entity).toMatchObject({
       name: 'test',
       description: 'some description',
       is_active: false,
-      created_at: entity!.created_at,
+      created_at,
     });
   });
 });

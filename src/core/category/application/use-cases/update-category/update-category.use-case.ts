@@ -22,10 +22,8 @@ export class UpdateCategoryUseCase
       throw new NotFoundError(input.id, Category);
     }
 
-    input.name && category.changeName(input.name);
-    if (input.description !== undefined) {
-      category.changeDescription(input.description);
-    }
+    category.changeName(input.name);
+    category.changeDescription(input.description);
 
     if (input.is_active === true) {
       category.activate();
@@ -34,6 +32,8 @@ export class UpdateCategoryUseCase
     if (input.is_active === false) {
       category.deactivate();
     }
+
+    category.changeCreatedAt(input.created_at);
 
     if (category.notification.hasErrors()) {
       throw new EntityValidationError(category.notification.toJSON());

@@ -1,6 +1,6 @@
 import { IUseCase } from '../../../../shared/application/use-case-interface';
 import { ICategoryRepository } from '../../../domain/category.repository';
-import { Category } from '../../../domain/category.aggregate';
+import { Category, CategoryId } from '../../../domain/category.aggregate';
 import {
   CategoryOutput,
   CategoryOutputMapper,
@@ -14,7 +14,10 @@ export class CreateCategoryUseCase
   constructor(private categoryRepo: ICategoryRepository) {}
 
   async execute(input: CreateCategoryInput): Promise<CategoryOutput> {
-    const entity = Category.create(input);
+    const entity = Category.create({
+      ...input,
+      category_id: new CategoryId(input.category_id),
+    });
     if (entity.notification.hasErrors()) {
       throw new EntityValidationError(entity.notification.toJSON());
     }
