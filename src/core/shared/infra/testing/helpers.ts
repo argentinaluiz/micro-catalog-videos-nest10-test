@@ -47,7 +47,7 @@ export function setupElasticSearch(
     if (!options.deleteIndex) {
       return;
     }
-    await _esClient.indices.delete({ index: _indexName });
+    await _esClient.indices?.delete({ index: _indexName });
   });
 
   return {

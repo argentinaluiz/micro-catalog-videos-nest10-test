@@ -8,19 +8,19 @@ import {
   validateSync,
 } from 'class-validator';
 
-export type CreateCategoryInputConstructorProps = {
-  category_id: string;
+export type SaveCategoryInputConstructorProps = {
+  category_id?: string;
   name: string;
   description: string | null;
   is_active: boolean;
   created_at: Date;
 };
 
-export class CreateCategoryInput {
+export class SaveCategoryInput {
   @IsUUID('4')
   @IsString()
-  @IsNotEmpty()
-  category_id: string;
+  @IsOptional()
+  category_id?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -38,7 +38,7 @@ export class CreateCategoryInput {
   @IsNotEmpty()
   created_at: Date;
 
-  constructor(props?: CreateCategoryInputConstructorProps) {
+  constructor(props?: SaveCategoryInputConstructorProps) {
     if (!props) return;
     this.category_id = props.category_id;
     this.name = props.name;
@@ -48,8 +48,8 @@ export class CreateCategoryInput {
   }
 }
 
-export class ValidateCreateCategoryInput {
-  static validate(input: CreateCategoryInput) {
+export class ValidateSaveCategoryInput {
+  static validate(input: SaveCategoryInput) {
     return validateSync(input);
   }
 }

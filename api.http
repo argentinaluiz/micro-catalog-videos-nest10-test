@@ -2,3 +2,28 @@ GET http://localhost:3000
 
 ###
 GET http://host.docker.internal:2375
+
+
+###
+POST http://localhost:8083/connectors
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "mysql-connector",
+    "config": {
+        "connector.class": "io.debezium.connector.mysql.MySqlConnector",
+        "tasks.max": "1",
+        "topic.prefix": "mysql",
+        "database.hostname": "host.docker.internal",
+        "database.port": "3306",
+        "database.user": "root",
+        "database.password": "root",
+        "database.server.id": "1",
+        "provide.transaction.metadata": "true",
+        "database.server.name": "mysql-server",
+        "schema.history.internal.kafka.bootstrap.servers": "kafka:29092",
+        "schema.history.internal.kafka.topic": "mysql_history",
+        "database.whitelist": "micro_videos"
+    }
+}
