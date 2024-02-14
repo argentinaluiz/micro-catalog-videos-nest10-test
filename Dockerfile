@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:21.6.1-slim
 
 
 RUN npm install -g @nestjs/cli@10.1.17

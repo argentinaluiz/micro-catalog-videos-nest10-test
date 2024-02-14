@@ -1,5 +1,8 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import { ElasticsearchContainer } from '@testcontainers/elasticsearch';
+import {
+  ElasticsearchContainer,
+  StartedElasticsearchContainer,
+} from '@testcontainers/elasticsearch';
 import { esMapping } from '../db/elastic-search/es-mapping';
 import debug from 'debug';
 import crypto from 'crypto';
@@ -12,30 +15,40 @@ type SetupElasticSearchHelper = {
 export function setupElasticSearch(
   options: SetupElasticSearchHelper = { deleteIndex: true },
 ) {
-  let _container;
+  let _container: StartedElasticsearchContainer;
   let _indexName;
   let _esClient: ElasticsearchService;
 
   beforeAll(async () => {
-    _container = await new ElasticsearchContainer('elasticsearch:7.17.7')
-      .withReuse()
-      .withTmpFs({
-        '/usr/share/elasticsearch/data': 'rw',
-      })
-      .withExposedPorts({
-        container: 9200,
-        host: 9200,
-      })
-      .start();
-    _esClient = new ElasticsearchService({
-      node: _container.getHttpUrl(),
-    });
+    do {
+      try {
+        _container = await new ElasticsearchContainer('elasticsearch:7.17.7')
+          .withReuse()
+          .withTmpFs({
+            '/usr/share/elasticsearch/data': 'rw',
+          })
+          .withExposedPorts({
+            container: 9200,
+            host: 9200,
+          })
+          .start();
+        _esClient = new ElasticsearchService({
+          node: _container.getHttpUrl(),
+        });
+      } catch (e) {
+        if (!e.message.includes('port is already allocated')) {
+          throw e;
+        }
+        continue;
+      }
+      break;
+    } while (true);
   }, 20000);
 
   beforeEach(async () => {
     _indexName = 'test_' + crypto.randomInt(0, 1000000);
     esDebug('indexName: %s', _indexName);
-    await _esClient.indices.create({
+    await _esClient?.indices.create({
       index: _indexName,
       body: {
         mappings: esMapping,
@@ -47,7 +60,7 @@ export function setupElasticSearch(
     if (!options.deleteIndex) {
       return;
     }
-    await _esClient.indices?.delete({ index: _indexName });
+    await _esClient?.indices?.delete({ index: _indexName });
   });
 
   return {
