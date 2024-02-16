@@ -16,4 +16,8 @@ services:
       - ~/.docker/config.json:/home/node/.docker/config.json:ro
     ports:
       - 3001:3000
-    
+  
+  memcached:
+    image: memcached:1.6.23-alpine3.19
+    ports:
+      - 11211:11211

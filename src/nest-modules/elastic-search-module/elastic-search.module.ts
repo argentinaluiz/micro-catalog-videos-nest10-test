@@ -1,9 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import {
-  ElasticsearchModule,
-  ElasticsearchService,
-} from '@nestjs/elasticsearch';
+import { ElasticsearchModule } from '@nestjs/elasticsearch';
 
 @Global()
 @Module({
