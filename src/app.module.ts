@@ -3,6 +3,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { KafkaController } from './kafka.controller';
 import { CacheModule } from '@nestjs/cache-manager';
+import { KafkaRetryController } from './kafka-retry/kafka-retry.controller';
+import { KafkaModule } from './kafka/kafka.module';
 import memcachedStore from 'cache-manager-memcached-store';
 import Memcache from 'memcache-pp';
 
@@ -19,8 +21,9 @@ import Memcache from 'memcache-pp';
         };
       },
     }),
+    KafkaModule,
   ],
-  controllers: [AppController, KafkaController],
+  controllers: [AppController, KafkaController, KafkaRetryController],
   providers: [AppService],
 })
 export class AppModule {}

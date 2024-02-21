@@ -9,19 +9,6 @@
             "name": "Run npm start:debug kafka.cmd",
             "request": "launch",
             "type": "node-terminal"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Launch Program",
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "program": "${workspaceFolder}/src/nest-modules/kafka-module/custom-kafka-server.ts",
-            "preLaunchTask": "tsc: build - tsconfig.json",
-            "outFiles": [
-                "${workspaceFolder}/dist/**/*.js"
-            ]
         }
     ]
 }

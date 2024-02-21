@@ -15,11 +15,12 @@ export class KafkaController {
   //@UseInterceptors(KafkaInterceptor)
   @EventPattern('topic')
   xpto(@Payload() message, @Ctx() ctx: KafkaContext) {
+    console.log('consumiu a messagem');
     //console.log(context);
     // const error = new KafkaJSNonRetriableError('testtttttttttttttt');
     // error.retriable = false;
     // throw error;
-    throw new CustomError('test1111');
+    //throw new CustomError('test1111');
     // const error = new RpcException('test');
     // error.retriable = false;
     // throw error;
@@ -27,7 +28,7 @@ export class KafkaController {
     // const error = new CustomError('test');
     // error.retriable = false;
     // throw error;
-    //throw new KafkaRetriableException({ message: 'test' });
+    throw new KafkaRetriableException({ message: 'test' });
   }
 }
 

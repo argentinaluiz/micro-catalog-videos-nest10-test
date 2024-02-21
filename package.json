@@ -39,6 +39,7 @@
     "eventemitter2": "^6.4.9",
     "joi": "^17.11.0",
     "kafkajs": "^2.2.4",
+    "kafkajs-async-retry": "^1.0.0",
     "memcache-pp": "^0.3.3",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1"
