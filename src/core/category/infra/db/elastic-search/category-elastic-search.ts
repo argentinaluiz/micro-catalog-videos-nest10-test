@@ -1,5 +1,4 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import { errors } from '@elastic/transport';
 import {
   CategorySearchParams,
   CategorySearchResult,
