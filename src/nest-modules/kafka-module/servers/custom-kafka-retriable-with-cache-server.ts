@@ -1,11 +1,14 @@
-import { KafkaOptions, ServerKafka } from '@nestjs/microservices';
 import { Cache } from 'cache-manager';
 import { KafkaJSNonRetriableError } from 'kafkajs';
-import { CustomKafkaRetriableException } from './custom-kafka-retriable-exception';
+import { CustomKafkaRetriableWithCacheException } from '../kafka-exceptions';
+import {
+  CustomKafkaServer,
+  CustomKafkaServerOptions,
+} from './custom-kafka-server';
 
-export class CustomKafkaServer extends ServerKafka {
+export class CustomKafkaRetriableWithCacheServer extends CustomKafkaServer {
   private cache: Cache | undefined | null;
-  constructor(options: KafkaOptions['options'], cache?: Cache) {
+  constructor(options: CustomKafkaServerOptions, cache?: Cache) {
     super(options);
     this.cache = cache;
   }
@@ -19,15 +22,12 @@ export class CustomKafkaServer extends ServerKafka {
       const error = event.payload.error as KafkaJSNonRetriableError;
       const causeError = error.cause;
 
-      if (causeError instanceof CustomKafkaRetriableException) {
+      if (causeError instanceof CustomKafkaRetriableWithCacheException) {
         const messageOffset = causeError.messageOffset;
         const topic = causeError.topic;
-        console.log('cache', this.cache)
-        console.log(`[kafka-retries][topic][${topic}][${messageOffset}]`);
         const retries = await this.cache!.get(
           `[kafka-retries][topic][${topic}][${messageOffset}]`,
         );
-        console.log('retries', retries);
         await this.cache!.set(
           `[kafka-retries][topic][${topic}][${messageOffset}]`,
           retries ? +retries + 1 : 1,

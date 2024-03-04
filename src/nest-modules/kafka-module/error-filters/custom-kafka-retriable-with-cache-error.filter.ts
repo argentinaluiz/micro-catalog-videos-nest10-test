@@ -6,18 +6,18 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { KafkaContext } from '@nestjs/microservices';
-import { NotFoundError } from '../core/shared/domain/errors/not-found.error';
-import { EntityValidationError } from '../core/shared/domain/validators/validation.error';
+import { EntityValidationError } from '../../../core/shared/domain/validators/validation.error';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Cache } from 'cache-manager';
-import { CustomKafkaRetriableException } from '../nest-modules/kafka-module/custom-kafka-retriable-exception';
+import { CustomKafkaRetriableWithCacheException } from '../kafka-exceptions';
 
 @Catch()
-export class KafkaErrorFilter implements ExceptionFilter {
+export class CustomKafkaRetriableWithCacheErrorFilter
+  implements ExceptionFilter
+{
   static readonly MAX_RETRIES_BETWEEN_RESTARTS = 4;
 
   static readonly NON_RETRIABLE_ERRORS = [
-    NotFoundError,
     EntityValidationError,
     UnprocessableEntityException,
   ];
@@ -25,19 +25,19 @@ export class KafkaErrorFilter implements ExceptionFilter {
   constructor(@Inject(CACHE_MANAGER) private cacheManager: Cache) {}
 
   async catch(exception: Error, host: ArgumentsHost) {
-    console.log('KafkaErrorFilter.catch');
     const ctx: KafkaContext = host.switchToRpc().getContext();
 
     if (!(ctx instanceof KafkaContext)) {
       return;
     }
 
-    const hasNonRetriableError = KafkaErrorFilter.NON_RETRIABLE_ERRORS.some(
-      (error) => exception instanceof error,
-    );
+    const hasNonRetriableError =
+      CustomKafkaRetriableWithCacheErrorFilter.NON_RETRIABLE_ERRORS.some(
+        (error) => exception instanceof error,
+      );
 
     if (hasNonRetriableError) {
-      await this.releaseOffset(ctx, exception);
+      await this.releaseOffset(ctx);
       return;
     }
 
@@ -47,14 +47,14 @@ export class KafkaErrorFilter implements ExceptionFilter {
     );
 
     if (hasExceededRetries) {
-      await this.releaseOffset(ctx, exception);
+      await this.releaseOffset(ctx);
       await this.cacheManager.del(
         `[kafka-retries][topic][${ctx.getTopic()}][${ctx.getMessage().offset}]`,
       );
       return;
     }
 
-    throw new CustomKafkaRetriableException(
+    throw new CustomKafkaRetriableWithCacheException(
       exception,
       ctx.getTopic(),
       ctx.getMessage().offset,
@@ -67,26 +67,13 @@ export class KafkaErrorFilter implements ExceptionFilter {
     );
 
     const retries = Number(retriesRaw) || 0;
-    return retries >= KafkaErrorFilter.MAX_RETRIES_BETWEEN_RESTARTS;
+    return (
+      retries >=
+      CustomKafkaRetriableWithCacheErrorFilter.MAX_RETRIES_BETWEEN_RESTARTS
+    );
   }
 
-  async releaseOffset(ctx: KafkaContext, exception: Error) {
-    console.log('releaseOffset');
-    const message = JSON.parse(ctx.getMessage().value!.toString());
-    console.log(
-      await ctx.getProducer().send({
-        topic: 'dlq.catalog',
-        messages: [
-          {
-            value: JSON.stringify({
-              error: exception.message,
-              message,
-            }),
-          },
-        ],
-      }),
-      'send to dlq',
-    );
+  async releaseOffset(ctx: KafkaContext) {
     await ctx.getConsumer().commitOffsets([
       {
         topic: ctx.getTopic(),

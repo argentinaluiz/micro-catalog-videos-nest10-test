@@ -2,26 +2,34 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { KafkaController } from './kafka.controller';
-import { CacheModule } from '@nestjs/cache-manager';
-import { KafkaRetryController } from './kafka-retry/kafka-retry.controller';
-import { KafkaModule } from './kafka/kafka.module';
-import memcachedStore from 'cache-manager-memcached-store';
-import Memcache from 'memcache-pp';
+//import { CacheModule } from '@nestjs/cache-manager';
+import { KafkaRetryController } from './nest-modules/kafka-module/kafka-retry.controller';
+// import memcachedStore from 'cache-manager-memcached-store';
+// import Memcache from 'memcache-pp';
+import { DiscoveryModule } from '@golevelup/nestjs-discovery';
+import { ConfigModule } from './nest-modules/config-module/config.module';
+import { CategoriesModule } from './nest-modules/categories-module/categories.module';
+import { ElasticSearchModule } from './nest-modules/elastic-search-module/elastic-search.module';
+import { KafkaModule } from './nest-modules/kafka-module/kafka.module';
 
 @Module({
   imports: [
-    CacheModule.registerAsync({
-      useFactory: async () => {
-        return {
-          store: memcachedStore,
-          driver: Memcache,
-          options: {
-            hosts: ['memcached:11211'],
-          },
-        };
-      },
-    }),
+    ConfigModule.forRoot(),
+    DiscoveryModule,
+    // CacheModule.registerAsync({
+    //   useFactory: async () => {
+    //     return {
+    //       store: memcachedStore,
+    //       driver: Memcache,
+    //       options: {
+    //         hosts: ['memcached:11211'],
+    //       },
+    //     };
+    //   },
+    // }),
     KafkaModule,
+    ElasticSearchModule,
+    CategoriesModule,
   ],
   controllers: [AppController, KafkaController, KafkaRetryController],
   providers: [AppService],

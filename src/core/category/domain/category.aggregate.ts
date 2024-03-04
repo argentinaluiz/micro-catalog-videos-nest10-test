@@ -32,7 +32,7 @@ export class Category extends AggregateRoot {
     super();
     this.category_id = props.category_id;
     this.name = props.name;
-    this.description = props.description;
+    this.description = props.description ?? null;
     this.is_active = props.is_active;
     this.created_at = props.created_at;
   }

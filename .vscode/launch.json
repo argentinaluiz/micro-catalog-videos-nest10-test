@@ -9,6 +9,12 @@
             "name": "Run npm start:debug kafka.cmd",
             "request": "launch",
             "type": "node-terminal"
+        },
+        {
+            "command": "npm run test:debug",
+            "name": "Run npm test:debug",
+            "request": "launch",
+            "type": "node-terminal"
         }
     ]
 }

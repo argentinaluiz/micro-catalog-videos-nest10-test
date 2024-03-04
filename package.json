@@ -16,12 +16,14 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
+    "test:debug": "node --inspect -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
     "@elastic/elasticsearch": "^8.12.1",
+    "@golevelup/nestjs-discovery": "^4.0.0",
     "@google-cloud/storage": "^7.6.0",
+    "@kafkajs/confluent-schema-registry": "^3.3.0",
     "@nestjs/cache-manager": "^2.2.1",
     "@nestjs/common": "^10.0.0",
     "@nestjs/config": "^3.2.0",

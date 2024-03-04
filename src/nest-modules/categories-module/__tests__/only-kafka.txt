@@ -1,0 +1,324 @@
+import { KafkaContainer, StartedKafkaContainer } from '@testcontainers/kafka';
+import { MySqlContainer, StartedMySqlContainer } from '@testcontainers/mysql';
+import {
+  GenericContainer,
+  Network,
+  StartedTestContainer,
+} from 'testcontainers';
+import { HttpWaitStrategy } from 'testcontainers/build/wait-strategies/http-wait-strategy';
+import mysql from 'mysql2/promise';
+import { Test, TestingModule } from '@nestjs/testing';
+import { CategoriesModule } from '../categories.module';
+import { ConfigModule } from '../../config-module/config.module';
+import { ElasticSearchModule } from '../../elastic-search-module/elastic-search.module';
+import { setupElasticSearch } from '../../../core/shared/infra/testing/helpers';
+import crypto from 'crypto';
+import { CustomAsyncKafkaServer } from '../../kafka-module/custom-async-kafka-server';
+import { INestMicroservice } from '@nestjs/common';
+describe('CategoriesConsumer Integration Tests', () => {
+  setupElasticSearch();
+
+  let _kafkaContainer: StartedKafkaContainer;
+  let _mysqlContainer: StartedMySqlContainer;
+  let _schemaRegistryContainer: StartedTestContainer;
+  let _kafkaConnect: StartedTestContainer;
+  let _dbName;
+  let _connectorName;
+  let _microservice: INestMicroservice;
+  beforeAll(
+    async () => {
+      const containers = await Promise.all([
+        new KafkaContainer('confluentinc/cp-kafka:7.5.2')
+          .withReuse()
+          .withExposedPorts(9092)
+          .withNetworkMode('host')
+          .start(),
+        // new MySqlContainer('mysql:8.0.30-debian')
+        //   .withReuse()
+        //   .withCommand([
+        //     '--default-authentication-plugin=mysql_native_password',
+        //     '--server-id=1',
+        //     '--log-bin=mysql-bin',
+        //   ])
+        //   .withTmpFs({ '/var/lib/mysql': 'rw' })
+        //   .withRootPassword('root')
+        //   .withExposedPorts({
+        //     container: 3306,
+        //     host: 3307,
+        //   })
+        //   .start(),
+      ]);
+      console.log(containers);
+      _kafkaContainer = containers[0];
+      // _mysqlContainer = containers[1];
+      // _schemaRegistryContainer = await new GenericContainer(
+      //   'confluentinc/cp-schema-registry:7.5.2',
+      // )
+      //   .withReuse()
+      //   .withEnvironment({
+      //     SCHEMA_REGISTRY_HOST_NAME: 'schema-registry',
+      //     SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(9093)}`,
+      //     SCHEMA_REGISTRY_LISTENERS: 'http://0.0.0.0:8081',
+      //   })
+      //   .withExposedPorts({
+      //     container: 8081,
+      //     host: 8082,
+      //   })
+      //   .start();
+      // _kafkaConnect = await new GenericContainer(
+      //   'cnfldemos/cp-server-connect-datagen:0.6.2-7.5.0',
+      // )
+      //   .withReuse()
+      //   .withExposedPorts({
+      //     container: 8083,
+      //     host: 8084,
+      //   })
+      //   .withEnvironment({
+      //     CONNECT_BOOTSTRAP_SERVERS: `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(
+      //       9093,
+      //     )}`,
+      //     CONNECT_REST_ADVERTISED_HOST_NAME: 'connect',
+      //     CONNECT_GROUP_ID: 'compose-connect-group',
+      //     CONNECT_CONFIG_STORAGE_TOPIC: 'docker-connect-configs',
+      //     CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: '1',
+      //     CONNECT_OFFSET_FLUSH_INTERVAL_MS: '10000',
+      //     CONNECT_OFFSET_STORAGE_TOPIC: 'docker-connect-offsets',
+      //     CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: '1',
+      //     CONNECT_STATUS_STORAGE_TOPIC: 'docker-connect-status',
+      //     CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: '1',
+      //     CONNECT_KEY_CONVERTER:
+      //       'org.apache.kafka.connect.storage.StringConverter',
+      //     CONNECT_VALUE_CONVERTER: 'io.confluent.connect.avro.AvroConverter',
+      //     CONNECT_VALUE_CONVERTER_SCHEMA_REGISTRY_URL: `http://${_schemaRegistryContainer.getHost()}:${_schemaRegistryContainer.getMappedPort(
+      //       8081,
+      //     )}`,
+      //     CLASSPATH:
+      //       '/usr/share/java/monitoring-interceptors/monitoring-interceptors-7.5.2.jar',
+      //     CONNECT_PRODUCER_INTERCEPTOR_CLASSES:
+      //       'io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor',
+      //     CONNECT_CONSUMER_INTERCEPTOR_CLASSES:
+      //       'io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor',
+      //     CONNECT_PLUGIN_PATH:
+      //       '/usr/share/java,/usr/share/confluent-hub-components',
+      //     CONNECT_LOG4J_LOGGERS:
+      //       'org.apache.zookeeper=ERROR,org.I0Itec.zkclient=ERROR,org.reflections=ERROR',
+      //   })
+      //   .withCommand([
+      //     'bash',
+      //     //"bash -c 'confluent-hub install --no-prompt debezium/debezium-connector-mysql:2.2.1 && /etc/confluent/docker/run && sleep infinity'",
+      //     '-c',
+      //     // 'echo "Installing Connector"',
+      //     'confluent-hub install --no-prompt debezium/debezium-connector-mysql:2.2.1 && /etc/confluent/docker/run && sleep infinity',
+      //     // 'echo "Launching Kafka Connect"',
+      //     //'/etc/confluent/docker/run',
+      //     //'sleep infinity',
+      //   ])
+      //   .withWaitStrategy(
+      //     new HttpWaitStrategy('/connectors', 8083, {}).withStartupTimeout(
+      //       120000,
+      //     ),
+      //   )
+      //   .start();
+    },
+    1000 * 60 * 5,
+  );
+
+  beforeEach(async () => {
+    // _dbName = 'test_' + crypto.randomInt(0, 1000000);
+
+    // const connection = await mysql.createConnection(
+    //   _mysqlContainer.getConnectionUri(true),
+    // );
+    // await connection.query(`CREATE DATABASE ${_dbName};`);
+    // await connection.query(`use ${_dbName};`);
+    // await connection.query(
+    //   `CREATE TABLE IF NOT EXISTS categories (id INT, name VARCHAR(255), description TEXT, is_active BOOLEAN, created_at DATETIME);`,
+    // );
+    // await connection.end();
+
+    // _connectorName = 'test_' + crypto.randomInt(0, 1000000);
+
+    // const responseKConnectCreateConfig = await fetch(
+    //   `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
+    //     8083,
+    //   )}/connectors`,
+    //   {
+    //     method: 'POST',
+    //     headers: {
+    //       'Content-Type': 'application/json',
+    //     },
+    //     body: JSON.stringify({
+    //       name: _connectorName,
+    //       config: {
+    //         'connector.class': 'io.debezium.connector.mysql.MySqlConnector',
+    //         'tasks.max': '1',
+    //         'topic.prefix': 'mysql',
+    //         'database.hostname': _mysqlContainer.getHost(),
+    //         'database.port': _mysqlContainer.getPort(),
+    //         'database.user': 'root',
+    //         'database.password': _mysqlContainer.getRootPassword(),
+    //         'database.server.id': '1',
+    //         'provide.transaction.metadata': 'true',
+    //         'database.server.name': 'mysql-server',
+    //         'schema.history.internal.kafka.bootstrap.servers': `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(
+    //           9093,
+    //         )}`,
+    //         'schema.history.internal.kafka.topic': 'mysql_history',
+    //         'database.whitelist': _dbName,
+    //       },
+    //     }),
+    //   },
+    // );
+    // if (responseKConnectCreateConfig.status !== 201) {
+    //   throw new Error(await responseKConnectCreateConfig.text());
+    // }
+    // console.log(
+    //   await responseKConnectCreateConfig.text(),
+    //   responseKConnectCreateConfig.status,
+    // );
+
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // // console.log(
+    // //   await (
+    // //     await fetch(
+    // //       `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
+    // //         8083,
+    // //       )}/connectors`,
+    // //     )
+    // //   ).text(),
+    // // );
+
+    // const responseKConnectCheckStatus = await fetch(
+    //   `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
+    //     8083,
+    //   )}/connectors/${_connectorName}/status`,
+    // );
+    // if (responseKConnectCheckStatus.status !== 200) {
+    //   throw new Error(await responseKConnectCheckStatus.text());
+    // }
+
+    // const data = await responseKConnectCheckStatus.json();
+    // console.log(data);
+    // if (data.tasks[0].state !== 'RUNNING') {
+    //   throw new Error(data);
+    // }
+
+    const module: TestingModule = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot(), CategoriesModule, ElasticSearchModule],
+    }).compile();
+    // console.log({
+    //   client: {
+    //     brokers: [
+    //       `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(9093)}`,
+    //     ],
+    //     connectionTimeout: 1000,
+    //   },
+    //   consumer: {
+    //     groupId: _connectorName,
+    //     retry: {
+    //       restartOnFailure: (e) => Promise.resolve(false),
+    //     },
+    //   },
+    //   subscribe: {
+    //     fromBeginning: true,
+    //   },
+    // });
+
+    _microservice = module.createNestMicroservice({
+      strategy: new CustomAsyncKafkaServer({
+        client: {
+          clientId: 'test' + crypto.randomInt(0, 1000000),
+          brokers: [`localhost:9092`],
+          connectionTimeout: 1000,
+        },
+        consumer: {
+          groupId: _connectorName,
+          retry: {
+            restartOnFailure: (e) => Promise.resolve(false),
+          },
+          maxWaitTimeInMs: 0,
+        },
+        subscribe: {
+          fromBeginning: true,
+        },
+      }),
+    });
+    _microservice.enableShutdownHooks();
+    await _microservice.listen();
+  });
+
+  afterEach(async () => {
+    // if (_kafkaConnect) {
+    //   const responseKConnectDelete = await fetch(
+    //     `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
+    //       8083,
+    //     )}/connectors/${_connectorName}`,
+    //     {
+    //       method: 'DELETE',
+    //     },
+    //   );
+    //   if (responseKConnectDelete.status !== 204) {
+    //     throw new Error(await responseKConnectDelete.text());
+    //   }
+    // }
+    // if (_mysqlContainer) {
+    //   const connection = await mysql.createConnection(
+    //     _mysqlContainer.getConnectionUri(true),
+    //   );
+    //   await connection.query(`DROP DATABASE ${_dbName}`);
+    //   await connection.end();
+    // }
+    console.time('close');
+    await _microservice.close();
+    console.timeEnd('close');
+  });
+
+  test('should sync a category', async () => {
+    // const moduleRef = await Test.createTestingModule({
+    //   imports: [
+    //     ConfigModule.forRoot({
+    //       load: [
+    //         () => ({
+    //           ELASTIC_SEARCH_INDEX: esHelper.indexName,
+    //         }),
+    //       ],
+    //     }),
+    //     ElasticSearchModule,
+    //     CategoriesModule,
+    //   ],
+    // }).compile();
+    // const connection = await mysql.createConnection({
+    //   host: _mysqlContainer.getHost(),
+    //   user: 'root',
+    //   password: _mysqlContainer.getRootPassword(),
+    //   database: 'test',
+    // });
+    // await connection.query(
+    //   'CREATE TABLE IF NOT EXISTS categories (id INT, name VARCHAR(255), description TEXT, is_active BOOLEAN, created_at DATETIME)',
+    // );
+    // await connection.query(
+    //   'INSERT INTO categories (id, name, description, is_active, created_at) VALUES (1, "name", "description", true, 2021-01-01T00:00:00)',
+    // );
+  });
+  // beforeEach(async () => {
+  //   _indexName = 'test_' + crypto.randomInt(0, 1000000);
+  //   esDebug('indexName: %s', _indexName);
+  //   await _esClient.indices.create({
+  //     index: _indexName,
+  //     body: {
+  //       mappings: esMapping,
+  //     },
+  //   });
+  // });
+
+  // afterEach(async () => {
+  //   await _network.stop();
+  //   if (!options.deleteIndex) {
+  //     return;
+  //   }
+  //   await _esClient.indices?.delete({ index: _indexName });
+  // });
+});
+
+// ATIVAR LOGS BINÁRIOS

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/config';
 import { join } from 'path';
 import * as Joi from 'joi';
+import { configuration } from './configuration';
 
 //@ts-expect-error - VALID
 const joiJson = Joi.extend((joi) => {
@@ -26,41 +27,50 @@ const joiJson = Joi.extend((joi) => {
   };
 });
 
-type ELASTIC_SEARCH_SCHEMA_TYPE = {
+type ELASTIC_SEARCH_ENV_SCHEMA_TYPE = {
   ELASTIC_SEARCH_HOST: string;
   ELASTIC_SEARCH_INDEX: string;
 };
 
-export const CONFIG_ELASTIC_SEARCH_SCHEMA: Joi.StrictSchemaMap<ELASTIC_SEARCH_SCHEMA_TYPE> =
+export const CONFIG_ELASTIC_SEARCH_ENV_SCHEMA: Joi.StrictSchemaMap<ELASTIC_SEARCH_ENV_SCHEMA_TYPE> =
   {
     ELASTIC_SEARCH_HOST: Joi.string().required(),
     ELASTIC_SEARCH_INDEX: Joi.string().required(),
   };
 
-type CONFIG_GOOGLE_SCHEMA_TYPE = {
-  GOOGLE_CLOUD_CREDENTIALS: object;
-  GOOGLE_CLOUD_STORAGE_BUCKET_NAME: string;
+type CONFIG_KAFKA_ENV_SCHEMA_TYPE = {
+  KAFKA_CONNECT_PREFIX: string;
+  KAFKA_BROKERS: string;
+  KAFKA_CONSUMER_GROUP_ID: string;
+  KAFKA_FROM_BEGINNING: boolean;
+  KAFKA_SCHEMA_REGISTRY_URL: string;
 };
 
-export const CONFIG_GOOGLE_SCHEMA: Joi.StrictSchemaMap<CONFIG_GOOGLE_SCHEMA_TYPE> =
+export const CONFIG_KAFKA_ENV_SCHEMA: Joi.StrictSchemaMap<CONFIG_KAFKA_ENV_SCHEMA_TYPE> =
   {
-    GOOGLE_CLOUD_STORAGE_BUCKET_NAME: Joi.string().required(),
-    GOOGLE_CLOUD_CREDENTIALS: joiJson.object().required(),
+    KAFKA_CONNECT_PREFIX: Joi.string().required(),
+    KAFKA_BROKERS: Joi.string().required(),
+    KAFKA_CONSUMER_GROUP_ID: Joi.string().required(),
+    KAFKA_FROM_BEGINNING: Joi.boolean().required(),
+    KAFKA_SCHEMA_REGISTRY_URL: Joi.string().required(),
   };
 
-export type CONFIG_SCHEMA_TYPE = ELASTIC_SEARCH_SCHEMA_TYPE &
-  CONFIG_GOOGLE_SCHEMA_TYPE;
+export type CONFIG_SCHEMA_TYPE = ELASTIC_SEARCH_ENV_SCHEMA_TYPE &
+  CONFIG_KAFKA_ENV_SCHEMA_TYPE;
 
-type CONFIG_AUTH_SCHEMA_TYPE = {
-  JWT_PUBLIC_KEY: string;
-  JWT_PRIVATE_KEY: string;
+export type Configuration = {
+  elastic_search: {
+    host: string;
+    index: string;
+  };
+  kafka: {
+    connect_prefix: string;
+    brokers: string[];
+    consumer_group_id: string;
+    from_beginning: boolean;
+    schema_registry_url: string;
+  };
 };
-
-export const CONFIG_AUTH_SCHEMA: Joi.StrictSchemaMap<CONFIG_AUTH_SCHEMA_TYPE> =
-  {
-    JWT_PUBLIC_KEY: Joi.string().required(),
-    JWT_PRIVATE_KEY: Joi.string().optional(),
-  };
 
 @Module({})
 export class ConfigModule extends NestConfigModule {
@@ -76,10 +86,10 @@ export class ConfigModule extends NestConfigModule {
         // join(process.cwd(), `/envs/.env.${process.env.NODE_ENV}`),
         // join(process.cwd(), '/envs/.env'),
       ],
+      load: [configuration],
       validationSchema: joiJson.object({
-        ...CONFIG_ELASTIC_SEARCH_SCHEMA,
-        ...CONFIG_GOOGLE_SCHEMA,
-        ...CONFIG_AUTH_SCHEMA,
+        ...CONFIG_ELASTIC_SEARCH_ENV_SCHEMA,
+        ...CONFIG_KAFKA_ENV_SCHEMA,
       }),
       ...otherOptions,
     });

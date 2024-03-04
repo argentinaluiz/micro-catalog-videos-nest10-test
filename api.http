@@ -27,3 +27,16 @@ Accept: application/json
         "database.whitelist": "micro_videos"
     }
 }
+
+###
+GET http://172.17.0.1:8084/connectors/mysql-connector/status
+
+
+###
+GET http://127.17.0.1:8082/subjects
+
+###
+GET http://172.17.0.1:8082/config/schematest-value
+
+###
+GET http://172.17.0.1:8082/schemas

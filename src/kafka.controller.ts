@@ -13,7 +13,7 @@ import { KafkaJSNonRetriableError } from 'kafkajs';
 @Controller()
 export class KafkaController {
   //@UseInterceptors(KafkaInterceptor)
-  @EventPattern('topic')
+  //@EventPattern('topic')
   xpto(@Payload() message, @Ctx() ctx: KafkaContext) {
     console.log('consumiu a messagem');
     //console.log(context);

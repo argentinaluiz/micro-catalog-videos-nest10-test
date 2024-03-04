@@ -1,146 +1,280 @@
-import { KafkaContainer, StartedKafkaContainer } from '@testcontainers/kafka';
-import { MySqlContainer, StartedMySqlContainer } from '@testcontainers/mysql';
-import {
-  GenericContainer,
-  Network,
-  StartedTestContainer,
-} from 'testcontainers';
-import { HttpWaitStrategy } from 'testcontainers/build/wait-strategies/http-wait-strategy';
-import mysql from 'mysql2/promise';
-import { Test } from '@nestjs/testing';
-import { CategoriesModule } from '../categories.module';
-import { ConfigModule } from '../../config-module/config.module';
-import { ElasticSearchModule } from '../../elastic-search-module/elastic-search.module';
-import { setupElasticSearch } from '../../../core/shared/infra/testing/helpers';
-import { ConfigService } from '@nestjs/config';
+import { DeleteCategoryUseCase } from '../../../core/category/application/use-cases/delete-category/delete-category.use-case';
+import { SaveCategoryUseCase } from '../../../core/category/application/use-cases/save-category/save-category.use-case';
+import { CategoriesConsumer } from '../categories.consumer';
+import { Test, TestingModule } from '@nestjs/testing';
+import { CDCOperation } from '../SchemaChangesDto';
+import { UnprocessableEntityException } from '@nestjs/common';
 
-describe('SaveCategoryUseCase Integration Tests', () => {
-  const esHelper = setupElasticSearch();
+describe('CategoriesConsumer Unit Tests', () => {
+  let categoriesConsumer: CategoriesConsumer;
+  let saveCategoryUseCase: SaveCategoryUseCase;
+  let deleteCategoryUseCase: DeleteCategoryUseCase;
 
-  let _kafkaContainer: StartedKafkaContainer;
-  let _mysqlContainer: StartedMySqlContainer;
-  let _kafkaConnect: StartedTestContainer;
-  let _network;
-  beforeAll(async () => {
-    _network = await new Network().start();
-    _kafkaContainer = await new KafkaContainer('confluentinc/cp-kafka:7.5.2')
-      .withReuse()
-      .withNetwork(_network)
-      .start();
-    _mysqlContainer = await new MySqlContainer('mysql:8.0.30-debian')
-      .withReuse()
-      .withNetwork(_network)
-      .withTmpFs({ '/var/lib/mysql': 'rw' })
-      .start();
-    _kafkaConnect = await new GenericContainer('debezium/connect:2.4.1.Final')
-      .withReuse()
-      .withNetwork(_network)
-      .withExposedPorts(8083)
-      .withEnvironment({
-        BOOTSTRAP_SERVERS: `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(
-          9093,
-        )}`,
-        GROUP_ID: '1',
-        CONFIG_STORAGE_TOPIC: 'debezium_connect_config',
-        OFFSET_STORAGE_TOPIC: 'debezium_connect_offsets',
-        STATUS_STORAGE_TOPIC: 'debezium_connect_status',
-        CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: 'false',
-        CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: 'false',
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [CategoriesConsumer],
+      providers: [SaveCategoryUseCase, DeleteCategoryUseCase],
+    })
+      .overrideProvider(SaveCategoryUseCase)
+      .useValue({
+        execute: jest.fn(),
       })
-      .withWaitStrategy(
-        new HttpWaitStrategy('/connectors', 8083).withStartupTimeout(60000),
-      )
-      .start();
-    let response = await fetch(
-      `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
-        8083,
-      )}/connectors/mysql-connector/config`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          'connector.class': 'io.debezium.connector.mysql.MySqlConnector',
-          'tasks.max': '1',
-          'topic.prefix': 'mysql',
-          'database.hostname': _mysqlContainer.getHost(),
-          'database.port': _mysqlContainer.getPort(),
-          'database.user': 'root',
-          'database.password': _mysqlContainer.getRootPassword(),
-          'database.server.id': '1',
-          'provide.transaction.metadata': 'true',
-          'database.server.name': 'mysql-server',
-          'schema.history.internal.kafka.bootstrap.servers': `${_kafkaContainer.getHost()}:${_kafkaContainer.getMappedPort(
-            9093,
-          )}`,
-          'schema.history.internal.kafka.topic': 'mysql_history',
-          'database.whitelist': _mysqlContainer.getDatabase(),
-        }),
-      },
+      .overrideProvider(DeleteCategoryUseCase)
+      .useValue({
+        execute: jest.fn(),
+      })
+      .compile();
+
+    categoriesConsumer = module.get<CategoriesConsumer>(CategoriesConsumer);
+    saveCategoryUseCase = module.get<SaveCategoryUseCase>(SaveCategoryUseCase);
+    deleteCategoryUseCase = module.get<DeleteCategoryUseCase>(
+      DeleteCategoryUseCase,
     );
-    if (response.status !== 200 && response.status !== 201) {
-      throw new Error(await response.text());
-    }
-    response = await fetch(
-      `http://${_kafkaConnect.getHost()}:${_kafkaConnect.getMappedPort(
-        8083,
-      )}/connectors/mysql-connector/status`,
-    );
-    if (response.status !== 200) {
-      throw new Error(await response.text());
-    }
-
-    const data = await response.json();
-    if (data.tasks[0].state !== 'RUNNING') {
-      throw new Error(data);
-    }
-  }, 100000);
-
-  test('xpto', async () => {
-    const moduleRef = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          load: [
-            () => ({
-              ELASTIC_SEARCH_INDEX: esHelper.indexName,
-            }),
-          ],
-        }),
-        ElasticSearchModule,
-        CategoriesModule,
-      ],
-    }).compile();
-
-    // const connection = await mysql.createConnection({
-    //   host: _mysqlContainer.getHost(),
-    //   user: 'root',
-    //   password: _mysqlContainer.getRootPassword(),
-    //   database: 'test',
-    // });
-    // await connection.query(
-    //   'CREATE TABLE IF NOT EXISTS categories (id INT, name VARCHAR(255), description TEXT, is_active BOOLEAN, created_at DATETIME)',
-    // );
-    // await connection.query(
-    //   'INSERT INTO categories (id, name, description, is_active, created_at) VALUES (1, "name", "description", true, 2021-01-01T00:00:00)',
-    // );
   });
-  // beforeEach(async () => {
-  //   _indexName = 'test_' + crypto.randomInt(0, 1000000);
-  //   esDebug('indexName: %s', _indexName);
-  //   await _esClient.indices.create({
-  //     index: _indexName,
-  //     body: {
-  //       mappings: esMapping,
-  //     },
-  //   });
-  // });
 
-  // afterEach(async () => {
-  //   await _network.stop();
-  //   if (!options.deleteIndex) {
-  //     return;
-  //   }
-  //   await _esClient.indices?.delete({ index: _indexName });
-  // });
+  describe('handle', () => {
+    it('should log a message when the event is a read event', async () => {
+      const loggerSpy = jest.spyOn(categoriesConsumer['logger'], 'log');
+      const message = {
+        op: 'r',
+      } as any;
+
+      await categoriesConsumer.handle(message);
+
+      expect(loggerSpy).toHaveBeenCalledWith(
+        '[INFO] [CategoriesConsumer] - Discarding read event',
+      );
+    });
+
+    describe('should call saveUseCase.execute when the event is a create or update event', () => {
+      const repeatedProps = {
+        id: '6e8e2e8e-4b6e-4f3e-8f3c-3f3e8e3e8e3e',
+        name: 'category',
+        description: 'description',
+        is_active: true,
+        created_at: new Date(),
+      };
+      const arrange = [
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: repeatedProps,
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            is_active: false,
+          },
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            is_active: 'true',
+          },
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            is_active: 'false',
+          },
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            is_active: '1',
+          },
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            is_active: '0',
+          },
+        },
+        {
+          op: CDCOperation.CREATE,
+          before: null,
+          after: {
+            ...repeatedProps,
+            created_at: '2021-08-25T00:00:00.000Z',
+          },
+        },
+        {
+          op: CDCOperation.UPDATE,
+          before: {
+            id: '6e8e2e8e-4b6e-4f3e-8f3c-3f3e8e3e8e3e',
+            name: 'category',
+            description: 'description',
+            is_active: true,
+            created_at: new Date(),
+          },
+          after: {
+            id: '6e8e2e8e-4b6e-4f3e-8f3c-3f3e8e3e8e3e',
+            name: 'category changed',
+            description: 'description changed',
+            is_active: true,
+            created_at: new Date(),
+          },
+        },
+      ];
+
+      it.each(arrange)('message: %j', async (message) => {
+        const saveUseCaseSpy = jest.spyOn(saveCategoryUseCase, 'execute');
+
+        await categoriesConsumer.handle(message);
+
+        expect(saveUseCaseSpy).toHaveBeenCalledWith({
+          category_id: message.after.id,
+          name: message.after.name,
+          description: message.after.description,
+          is_active:
+            message.after.is_active === 'true' ||
+            message.after.is_active === true ||
+            //@ts-expect-error after.is_active is a string
+            message.after.is_active === 1 ||
+            message.after.is_active === '1',
+          created_at:
+            message.after.created_at instanceof Date
+              ? message.after.created_at
+              : new Date(message.after.created_at),
+        });
+      });
+    });
+
+    it('should call deleteUseCase.execute when the event is a delete event', async () => {
+      const deleteUseCaseSpy = jest.spyOn(deleteCategoryUseCase, 'execute');
+      const message = {
+        op: CDCOperation.DELETE,
+        before: {
+          id: 1,
+        },
+        after: null,
+      };
+
+      await categoriesConsumer.handle(message);
+
+      expect(deleteUseCaseSpy).toHaveBeenCalledWith(1);
+    });
+
+    describe('should throw an error when the event is not a valid operation', () => {
+      const repeatedErrors = [
+        'name should not be empty',
+        'name must be a string',
+        'is_active should not be empty',
+        'created_at must be a Date instance or a valid date string',
+      ];
+      const arrange = [
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: null,
+          },
+          expectedErrors: repeatedErrors,
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {},
+          },
+          expectedErrors: repeatedErrors,
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              id: 1,
+            },
+          },
+          expectedErrors: [
+            'category_id must be a string',
+            'category_id must be a UUID',
+            ...repeatedErrors,
+          ],
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              name: 1,
+            },
+          },
+          expectedErrors: [
+            'name must be a string',
+            'created_at must be a Date instance or a valid date string',
+          ],
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              name: 1,
+            },
+          },
+          expectedErrors: [
+            'name must be a string',
+            'created_at must be a Date instance or a valid date string',
+          ],
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              description: 1,
+            },
+          },
+          expectedErrors: ['description must be a string', ...repeatedErrors],
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              is_active: 'a',
+            },
+          },
+          expectedErrors: [
+            'name should not be empty',
+            'name must be a string',
+            'is_active must be a boolean value',
+            'created_at must be a Date instance or a valid date string',
+          ],
+        },
+        {
+          message: {
+            op: CDCOperation.CREATE,
+            after: {
+              created_at: 'a',
+            },
+          },
+          expectedErrors: [
+            'name should not be empty',
+            'name must be a string',
+            'created_at must be a Date instance or a valid date string',
+          ],
+        },
+      ];
+
+      it.each(arrange)('message: %j', async ({ message, expectedErrors }) => {
+        try {
+          await categoriesConsumer.handle(message as any);
+        } catch (e) {
+          const error: UnprocessableEntityException = e;
+          expect(e).toBeInstanceOf(UnprocessableEntityException);
+          expect(error.getStatus()).toBe(422);
+          //@ts-expect-error error.getResponse() is an object
+          expect(error.getResponse().message).toMatchObject(
+            expect.arrayContaining(expectedErrors),
+          );
+        }
+      });
+    });
+  });
 });

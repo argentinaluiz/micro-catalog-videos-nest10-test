@@ -1,31 +1,31 @@
 import { IsIn, IsNotEmpty, IsObject, ValidateIf } from 'class-validator';
 
-enum SchemaOperation {
+export enum CDCOperation {
   READ = 'r',
   CREATE = 'c',
   UPDATE = 'u',
   DELETE = 'd',
 }
 
-export class SchemaPayloadDto {
+export class CDCPayloadDto<T = any> {
   @IsIn([
-    SchemaOperation.READ,
-    SchemaOperation.CREATE,
-    SchemaOperation.UPDATE,
-    SchemaOperation.DELETE,
+    CDCOperation.READ,
+    CDCOperation.CREATE,
+    CDCOperation.UPDATE,
+    CDCOperation.DELETE,
   ])
   @IsNotEmpty()
-  op: SchemaOperation;
+  op: CDCOperation;
 
   @IsObject()
   @ValidateIf((object, value) => value !== null)
-  after: any;
+  after: T | null;
 
   @IsObject()
   @ValidateIf((object, value) => value !== null)
-  before: any;
+  before: T | null;
 }
 
-export class SchemaChangesDto {
-  payload: SchemaPayloadDto;
+export class CDCMessageDto {
+  payload: CDCPayloadDto;
 }
