@@ -1,11 +1,11 @@
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
-import { setupKafka } from '../../../core/shared/infra/testing/helpers';
-import { CustomKafkaServer } from '../servers/custom-kafka-server';
 import crypto from 'crypto';
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { Controller, INestMicroservice } from '@nestjs/common';
 import { logLevel } from 'kafkajs';
+import { setupKafka } from '../../../../core/shared/infra/testing/helpers';
+import { CustomKafkaServer } from '../custom-kafka-server';
 
 const _topic = 'schematest';
 
