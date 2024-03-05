@@ -21,11 +21,14 @@ export class CategoryInMemoryRepository
     filter: CategoryFilter | null,
   ): Promise<Category[]> {
     if (!filter) {
-      return items;
+      return items.filter((i) => !this.isDeleted(i));
     }
 
     return items.filter((i) => {
-      return i.name.toLowerCase().includes(filter.toLowerCase());
+      return (
+        !this.isDeleted(i) &&
+        i.name.toLowerCase().includes(filter.toLowerCase())
+      );
     });
   }
 

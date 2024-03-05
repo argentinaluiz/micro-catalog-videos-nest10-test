@@ -10,7 +10,8 @@ export type CategoryOutput = {
 
 export class CategoryOutputMapper {
   static toOutput(entity: Category): CategoryOutput {
-    const { category_id, ...other_props } = entity.toJSON();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { category_id, deleted_at, ...other_props } = entity.toJSON();
     return {
       id: category_id,
       ...other_props,

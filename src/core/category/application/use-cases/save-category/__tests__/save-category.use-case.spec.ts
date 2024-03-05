@@ -1,4 +1,3 @@
-import { UnitOfWorkFakeInMemory } from '../../../../../shared/infra/db/in-memory/fake-unit-work-in-memory';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { CategoryInMemoryRepository } from '../../../../infra/db/in-memory/category-in-memory.repository';
 import { SaveCategoryInput } from '../save-category.input';
@@ -9,7 +8,7 @@ describe('SaveCategoryUseCase Unit Tests', () => {
   let repository: CategoryInMemoryRepository;
 
   beforeEach(() => {
-    repository = new CategoryInMemoryRepository(new UnitOfWorkFakeInMemory());
+    repository = new CategoryInMemoryRepository();
     useCase = new SaveCategoryUseCase(repository);
   });
 

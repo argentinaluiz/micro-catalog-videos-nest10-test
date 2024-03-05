@@ -1,4 +1,3 @@
-import { UnitOfWorkFakeInMemory } from '../../../infra/db/in-memory/fake-unit-work-in-memory';
 import { AggregateRoot } from '../../aggregate-root';
 import { NotFoundError } from '../../errors/not-found.error';
 import { Uuid } from '../../value-objects/uuid.vo';
@@ -8,17 +7,20 @@ type StubAggregateConstructorProps = {
   entity_id?: Uuid;
   name: string;
   price: number;
+  deleted_at?: Date | null;
 };
 
 class StubAggregate extends AggregateRoot {
   entity_id: Uuid;
   name: string;
   price: number;
+  deleted_at: Date | null = null;
   constructor(props: StubAggregateConstructorProps) {
     super();
     this.entity_id = props.entity_id ?? new Uuid();
     this.name = props.name;
     this.price = +props.price;
+    this.deleted_at = props.deleted_at ?? null;
   }
 
   toJSON() {
@@ -26,6 +28,7 @@ class StubAggregate extends AggregateRoot {
       id: this.entity_id.id,
       name: this.name,
       price: this.price,
+      deleted_at: this.deleted_at,
     };
   }
 }
@@ -38,10 +41,7 @@ class StubInMemoryRepository extends InMemoryRepository<StubAggregate, Uuid> {
 
 describe('InMemoryRepository Unit Tests', () => {
   let repository: StubInMemoryRepository;
-  beforeEach(
-    () =>
-      (repository = new StubInMemoryRepository(new UnitOfWorkFakeInMemory())),
-  );
+  beforeEach(() => (repository = new StubInMemoryRepository()));
   it('should inserts a new entity', async () => {
     const entity = new StubAggregate({ name: 'name value', price: 5 });
     await repository.insert(entity);
@@ -60,6 +60,16 @@ describe('InMemoryRepository Unit Tests', () => {
 
     entityFound = await repository.findById(entity.entity_id);
     expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+    await repository.insert(deletedEntity);
+    entityFound = await repository.findById(deletedEntity.entity_id);
+    expect(entityFound).toBeNull();
   });
 
   it('should returns all entities', async () => {
@@ -69,6 +79,16 @@ describe('InMemoryRepository Unit Tests', () => {
     const entities = await repository.findAll();
 
     expect(entities).toStrictEqual([entity]);
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+    await repository.insert(deletedEntity);
+    const entitiesNotDeleted = await repository.findAll();
+    expect(entitiesNotDeleted).toStrictEqual([entity]);
   });
 
   it('should throws error on update when entity not found', () => {
@@ -89,6 +109,18 @@ describe('InMemoryRepository Unit Tests', () => {
     });
     await repository.update(entityUpdated);
     expect(entityUpdated.toJSON()).toStrictEqual(repository.items[0].toJSON());
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+
+    await repository.insert(deletedEntity);
+    await expect(repository.update(deletedEntity)).rejects.toThrow(
+      new NotFoundError(deletedEntity.entity_id, StubAggregate),
+    );
   });
 
   it('should throws error on delete when entity not found', () => {
@@ -105,15 +137,30 @@ describe('InMemoryRepository Unit Tests', () => {
   });
 
   it('should deletes an entity', async () => {
-    const entity = new StubAggregate({ name: 'name value', price: 5 });
-    await repository.insert(entity);
+    const entity1 = new StubAggregate({ name: 'name value', price: 5 });
+    await repository.insert(entity1);
 
-    await repository.delete(entity.entity_id);
-    expect(repository.items).toHaveLength(0);
+    await repository.delete(entity1.entity_id);
+    expect(repository.items).toHaveLength(1);
+    expect(repository.items[0].deleted_at).not.toBeNull();
 
-    await repository.insert(entity);
+    const entity2 = new StubAggregate({ name: 'name value', price: 5 });
+    //@ts-expect-error - delete deleted_at property
+    delete entity2['deleted_at'];
+    await repository.insert(entity2);
+    await repository.delete(entity2.entity_id);
+    expect(repository.items).toHaveLength(1);
 
-    await repository.delete(entity.entity_id);
-    expect(repository.items).toHaveLength(0);
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+    await repository.insert(deletedEntity);
+    await expect(repository.delete(deletedEntity.entity_id)).rejects.toThrow(
+      new NotFoundError(deletedEntity.entity_id, StubAggregate),
+    );
   });
 });

@@ -1,5 +1,4 @@
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
-import { UnitOfWorkFakeInMemory } from '../../../../../shared/infra/db/in-memory/fake-unit-work-in-memory';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { CategoryInMemoryRepository } from '../../../../infra/db/in-memory/category-in-memory.repository';
 import { GetCategoryUseCase } from '../get-category.use-case';
@@ -9,7 +8,7 @@ describe('GetCategoryUseCase Unit Tests', () => {
   let repository: CategoryInMemoryRepository;
 
   beforeEach(() => {
-    repository = new CategoryInMemoryRepository(new UnitOfWorkFakeInMemory());
+    repository = new CategoryInMemoryRepository();
     useCase = new GetCategoryUseCase(repository);
   });
 

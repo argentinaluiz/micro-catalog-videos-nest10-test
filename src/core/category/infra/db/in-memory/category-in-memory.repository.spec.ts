@@ -1,23 +1,16 @@
 import { Category } from '../../../domain/category.aggregate';
 import { CategoryFakeBuilder } from '../../../domain/category-fake.builder';
 import { CategoryInMemoryRepository } from './category-in-memory.repository';
-import { UnitOfWorkFakeInMemory } from '../../../../shared/infra/db/in-memory/fake-unit-work-in-memory';
 
 describe('CategoryInMemoryRepository', () => {
   let repository: CategoryInMemoryRepository;
 
-  beforeEach(
-    () =>
-      (repository = new CategoryInMemoryRepository(
-        new UnitOfWorkFakeInMemory(),
-      )),
-  );
+  beforeEach(() => (repository = new CategoryInMemoryRepository()));
+
   it('should no filter items when filter object is null', async () => {
     const items = [CategoryFakeBuilder.aCategory().build()];
-    const filterSpy = jest.spyOn(items, 'filter' as any);
 
     const itemsFiltered = await repository['applyFilter'](items, null);
-    expect(filterSpy).not.toHaveBeenCalled();
     expect(itemsFiltered).toStrictEqual(items);
   });
 
@@ -33,6 +26,18 @@ describe('CategoryInMemoryRepository', () => {
     const itemsFiltered = await repository['applyFilter'](items, 'TEST');
     expect(filterSpy).toHaveBeenCalledTimes(1);
     expect(itemsFiltered).toStrictEqual([items[0], items[1]]);
+  });
+
+  it('should not filter deleted items', async () => {
+    const items = [
+      CategoryFakeBuilder.aCategory().build(),
+      CategoryFakeBuilder.aCategory().build(),
+    ];
+    repository.items = items;
+    await repository.delete(items[0].category_id);
+
+    const output = await repository['applyFilter'](items, null);
+    expect(output).toStrictEqual([items[1]]);
   });
 
   it('should sort by created_at when sort param is null', async () => {

@@ -1,4 +1,3 @@
-import { UnitOfWorkFakeInMemory } from '../../../infra/db/in-memory/fake-unit-work-in-memory';
 import { AggregateRoot } from '../../aggregate-root';
 import { Uuid } from '../../value-objects/uuid.vo';
 import { InMemorySearchableRepository } from '../in-memory.repository';
@@ -61,12 +60,7 @@ class StubInMemorySearchableRepository extends InMemorySearchableRepository<
 describe('InMemorySearchableRepository Unit Tests', () => {
   let repository: StubInMemorySearchableRepository;
 
-  beforeEach(
-    () =>
-      (repository = new StubInMemorySearchableRepository(
-        new UnitOfWorkFakeInMemory(),
-      )),
-  );
+  beforeEach(() => (repository = new StubInMemorySearchableRepository()));
 
   describe('applyFilter method', () => {
     it('should no filter items when filter param is null', async () => {

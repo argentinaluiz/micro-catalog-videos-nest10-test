@@ -1,5 +1,4 @@
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
-import { UnitOfWorkFakeInMemory } from '../../../../../shared/infra/db/in-memory/fake-unit-work-in-memory';
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { CategoryInMemoryRepository } from '../../../../infra/db/in-memory/category-in-memory.repository';
 import { DeleteCategoryUseCase } from '../delete-category.use-case';
@@ -9,7 +8,7 @@ describe('DeleteCategoryUseCase Unit Tests', () => {
   let repository: CategoryInMemoryRepository;
 
   beforeEach(() => {
-    repository = new CategoryInMemoryRepository(new UnitOfWorkFakeInMemory());
+    repository = new CategoryInMemoryRepository();
     useCase = new DeleteCategoryUseCase(repository);
   });
 
@@ -35,6 +34,6 @@ describe('DeleteCategoryUseCase Unit Tests', () => {
     await useCase.execute({
       id: items[0].category_id.id,
     });
-    expect(repository.items).toHaveLength(0);
+    expect(repository.findAll()).resolves.toHaveLength(0);
   });
 });

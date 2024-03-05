@@ -5,7 +5,6 @@ import { ValueObject } from '../value-object';
 import { IRepository, ISearchableRepository } from './repository.interface';
 import { SearchParams, SortDirection } from './search-params';
 import { SearchResult } from './search-result';
-import { IUnitOfWork } from './unit-of-work.interface';
 
 export abstract class InMemoryRepository<
   E extends AggregateRoot,
@@ -14,16 +13,14 @@ export abstract class InMemoryRepository<
 {
   items: E[] = [];
 
-  constructor(private uow: IUnitOfWork) {}
+  constructor() {}
 
   async insert(entity: E): Promise<void> {
     this.items.push(entity);
-    this.uow.addAggregateRoot(entity);
   }
 
   async bulkInsert(entities: E[]): Promise<void> {
     this.items.push(...entities);
-    entities.forEach((entity) => this.uow.addAggregateRoot(entity));
   }
 
   async findById(entityId: ID): Promise<E | null> {
@@ -31,13 +28,15 @@ export abstract class InMemoryRepository<
   }
 
   async findAll(): Promise<E[]> {
-    return this.items;
+    return this.items.filter((entity) => !this.isDeleted(entity));
   }
 
   async findByIds(ids: ID[]): Promise<E[]> {
     //avoid to return repeated items
     return this.items.filter((entity) => {
-      return ids.some((id) => entity.entity_id.equals(id));
+      return (
+        !this.isDeleted(entity) && ids.some((id) => entity.entity_id.equals(id))
+      );
     });
   }
 
@@ -58,7 +57,9 @@ export abstract class InMemoryRepository<
     const existsId = new Set<ID>();
     const notExistsId = new Set<ID>();
     ids.forEach((id) => {
-      const item = this.items.find((entity) => entity.entity_id.equals(id));
+      const item = this.items.find(
+        (entity) => !this.isDeleted(entity) && entity.entity_id.equals(id),
+      );
       item ? existsId.add(id) : notExistsId.add(id);
     });
     return {
@@ -76,21 +77,33 @@ export abstract class InMemoryRepository<
       i.entity_id.equals(entity.entity_id),
     );
     this.items[indexFound] = entity;
-    this.uow.addAggregateRoot(entity);
   }
 
   async delete(id: ID): Promise<void> {
     await this._get(id);
-    const indexFound = this.items.findIndex((i) => i.entity_id.equals(id));
+    const indexFound = this.items.findIndex(
+      (i) => !this.isDeleted(i) && i.entity_id.equals(id),
+    );
     if (indexFound < 0) {
       throw new NotFoundError(id, this.getEntity());
     }
-    this.items.splice(indexFound, 1);
+    if ('deleted_at' in this.items[indexFound]) {
+      //@ts-expect-error entity can have a deleted_at property
+      this.items[indexFound].deleted_at = new Date();
+    } else {
+      this.items.splice(indexFound, 1);
+    }
   }
 
   protected async _get(id: ID): Promise<E | null> {
-    const item = this.items.find((i) => i.entity_id.equals(id));
+    const item = this.items.find(
+      (i) => !this.isDeleted(i) && i.entity_id.equals(id),
+    );
     return typeof item === 'undefined' ? null : item;
+  }
+
+  protected isDeleted(entity: E): boolean {
+    return 'deleted_at' in entity ? entity.deleted_at !== null : false;
   }
 
   abstract getEntity(): new (...args: any[]) => E;

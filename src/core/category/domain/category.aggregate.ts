@@ -9,6 +9,7 @@ export type CategoryConstructorProps = {
   description: string | null;
   is_active: boolean;
   created_at: Date;
+  deleted_at?: Date | null;
 };
 
 export type CategoryCreateCommand = {
@@ -27,6 +28,7 @@ export class Category extends AggregateRoot {
   description: string | null;
   is_active: boolean;
   created_at: Date;
+  deleted_at: Date | null = null;
 
   constructor(props: CategoryConstructorProps) {
     super();
@@ -35,6 +37,7 @@ export class Category extends AggregateRoot {
     this.description = props.description ?? null;
     this.is_active = props.is_active;
     this.created_at = props.created_at;
+    this.deleted_at = props.deleted_at ?? null;
   }
 
   static create(props: CategoryCreateCommand) {
@@ -84,6 +87,7 @@ export class Category extends AggregateRoot {
       description: this.description,
       is_active: this.is_active,
       created_at: this.created_at,
+      deleted_at: this.deleted_at,
     };
   }
 }
