@@ -1,9 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { KafkaController } from './kafka.controller';
 //import { CacheModule } from '@nestjs/cache-manager';
-import { KafkaRetryController } from './nest-modules/kafka-module/kafka-retry.controller';
 // import memcachedStore from 'cache-manager-memcached-store';
 // import Memcache from 'memcache-pp';
 import { DiscoveryModule } from '@golevelup/nestjs-discovery';
@@ -31,7 +29,7 @@ import { KafkaModule } from './nest-modules/kafka-module/kafka.module';
     ElasticSearchModule,
     CategoriesModule,
   ],
-  controllers: [AppController, KafkaController, KafkaRetryController],
+  controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}

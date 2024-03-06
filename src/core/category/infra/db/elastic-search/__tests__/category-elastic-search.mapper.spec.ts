@@ -12,7 +12,7 @@ describe('CategoryElasticSearchMapper', () => {
   beforeEach(() => {
     categoryDocument = {
       category_name: 'Test',
-      category_description: 'Test description',
+      description: 'Test description',
       is_active: true,
       created_at: new Date(),
       deleted_at: null,
@@ -23,7 +23,7 @@ describe('CategoryElasticSearchMapper', () => {
     category = new Category({
       category_id: id,
       name: categoryDocument.category_name,
-      description: categoryDocument.category_description,
+      description: categoryDocument.description,
       is_active: categoryDocument.is_active,
       created_at: categoryDocument.created_at as Date,
     });
@@ -36,15 +36,27 @@ describe('CategoryElasticSearchMapper', () => {
         categoryDocument,
       );
       expect(result).toEqual(category);
+
+      categoryDocument.deleted_at = new Date();
+      category.deleted_at = categoryDocument.deleted_at;
+      const result2 = CategoryElasticSearchMapper.toEntity(
+        category.category_id.id,
+        categoryDocument,
+      );
+      expect(result2).toEqual(category);
     });
   });
 
   describe('toDocument', () => {
     it('should convert entity to document', () => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { deleted_at, ...otherFields } = categoryDocument;
       const result = CategoryElasticSearchMapper.toDocument(category);
-      expect(result).toEqual(otherFields);
+      expect(result).toEqual(categoryDocument);
+
+      category.deleted_at = new Date();
+      categoryDocument.deleted_at = category.deleted_at;
+
+      const result2 = CategoryElasticSearchMapper.toDocument(category);
+      expect(result2).toEqual(categoryDocument);
     });
   });
 });
