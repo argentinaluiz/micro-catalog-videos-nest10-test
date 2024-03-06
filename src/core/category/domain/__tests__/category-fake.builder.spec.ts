@@ -200,6 +200,27 @@ describe('CategoryFakerBuilder Unit Tests', () => {
     });
   });
 
+  describe('deleted_at prop', () => {
+    const faker = CategoryFakeBuilder.aCategory();
+    test('should be a function', () => {
+      expect(typeof faker['_deleted_at']).toBe('function');
+    });
+
+    test('deleted', () => {
+      const $this = faker.deleted();
+      expect($this).toBeInstanceOf(CategoryFakeBuilder);
+      expect(faker['_deleted_at']).toBeInstanceOf(Date);
+      expect(faker.deleted_at).toBeInstanceOf(Date);
+    });
+
+    test('undeleted', () => {
+      const $this = faker.undeleted();
+      expect($this).toBeInstanceOf(CategoryFakeBuilder);
+      expect(faker['_deleted_at']).toBe(null);
+      expect(faker.deleted_at).toBe(null);
+    });
+  });
+
   test('should create a category', () => {
     const faker = CategoryFakeBuilder.aCategory();
     let category = faker.build();
