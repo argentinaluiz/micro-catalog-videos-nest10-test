@@ -1,4 +1,7 @@
-import { CategoryId } from '../../../category/domain/category.aggregate';
+import {
+  Category,
+  CategoryId,
+} from '../../../category/domain/category.aggregate';
 import { Genre, GenreId } from '../genre.aggregate';
 
 describe('Genre Without Validator Unit Tests', () => {
@@ -10,19 +13,21 @@ describe('Genre Without Validator Unit Tests', () => {
   test('constructor of genre', () => {
     const genre_id = new GenreId();
     const name = 'Movie';
-    const categoryId = new CategoryId();
+    const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
     const is_active = true;
     const created_at = new Date();
     const genre = new Genre({
       genre_id,
       name,
-      categories_id: new Map([[categoryId.id, categoryId]]),
+      categories: new Map([[nestedCategory.category_id.id, nestedCategory]]),
       is_active,
       created_at,
     });
     expect(genre.genre_id).toBe(genre_id);
     expect(genre.name).toBe(name);
-    expect(genre.categories_id).toEqual(new Map([[categoryId.id, categoryId]]));
+    expect(genre.categories).toEqual(
+      new Map([[nestedCategory.category_id.id, nestedCategory]]),
+    );
     expect(genre.is_active).toBe(is_active);
     expect(genre.created_at).toBe(created_at);
   });
@@ -31,20 +36,22 @@ describe('Genre Without Validator Unit Tests', () => {
     test('should create a genre', () => {
       const genre_id = new GenreId();
       const name = 'Movie';
-      const categoryId = new CategoryId();
-      const categoriesId = new Map([[categoryId.id, categoryId]]);
+      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const categoriesId = new Map([
+        [nestedCategory.category_id.id, nestedCategory],
+      ]);
       const is_active = true;
       const created_at = new Date();
       const genre = Genre.create({
         genre_id,
         name,
-        categories_id: [categoryId],
+        categories: [nestedCategory],
         is_active,
         created_at,
       });
       expect(genre.genre_id).toBe(genre_id);
       expect(genre.name).toBe(name);
-      expect(genre.categories_id).toEqual(categoriesId);
+      expect(genre.categories).toEqual(categoriesId);
       expect(genre.is_active).toBe(is_active);
       expect(genre.created_at).toBe(created_at);
       expect(Genre.prototype.validate).toHaveBeenCalledTimes(1);
@@ -55,7 +62,7 @@ describe('Genre Without Validator Unit Tests', () => {
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'Movie',
-      categories_id: [new CategoryId()],
+      categories: [Category.fake().aCategoryAndNested().build()[1]],
       is_active: true,
       created_at: new Date(),
     });
@@ -71,19 +78,19 @@ describe('Genre Without Validator Unit Tests', () => {
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'test',
-      categories_id: [categoryId],
+      categories: [categoryId],
       is_active: true,
       created_at: new Date(),
     });
-    genre.addCategoryId(categoryId);
-    expect(genre.categories_id.size).toBe(1);
-    expect(genre.categories_id).toEqual(new Map([[categoryId.id, categoryId]]));
+    genre.addCategory(categoryId);
+    expect(genre.categories.size).toBe(1);
+    expect(genre.categories).toEqual(new Map([[categoryId.id, categoryId]]));
     expect(Genre.prototype.validate).toHaveBeenCalledTimes(1);
 
     const categoryId2 = new CategoryId();
-    genre.addCategoryId(categoryId2);
-    expect(genre.categories_id.size).toBe(2);
-    expect(genre.categories_id).toEqual(
+    genre.addCategory(categoryId2);
+    expect(genre.categories.size).toBe(2);
+    expect(genre.categories).toEqual(
       new Map([
         [categoryId.id, categoryId],
         [categoryId2.id, categoryId2],

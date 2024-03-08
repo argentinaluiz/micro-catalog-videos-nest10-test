@@ -28,13 +28,13 @@ describe('CategoryInMemoryRepository', () => {
     expect(itemsFiltered).toStrictEqual([items[0], items[1]]);
   });
 
-  it('should not filter deleted items', async () => {
+  it('should not filter soft deleted items', async () => {
     const items = [
       CategoryFakeBuilder.aCategory().build(),
       CategoryFakeBuilder.aCategory().build(),
     ];
     repository.items = items;
-    await repository.delete(items[0].category_id);
+    items[0].markAsDeleted();
 
     const output = await repository['applyFilter'](items, null);
     expect(output).toStrictEqual([items[1]]);

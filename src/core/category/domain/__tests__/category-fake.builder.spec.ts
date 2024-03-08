@@ -246,6 +246,7 @@ describe('CategoryFakerBuilder Unit Tests', () => {
     expect(category.description).toBe('description test');
     expect(category.is_active).toBe(false);
     expect(category.created_at).toBe(created_at);
+    expect(category.deleted_at).toBeNull();
   });
 
   test('should create many categories', () => {
@@ -258,6 +259,7 @@ describe('CategoryFakerBuilder Unit Tests', () => {
       expect(typeof category.description === 'string').toBeTruthy();
       expect(category.is_active).toBe(true);
       expect(category.created_at).toBeInstanceOf(Date);
+      expect(category.deleted_at).toBeNull();
     });
 
     const created_at = new Date();
@@ -276,6 +278,43 @@ describe('CategoryFakerBuilder Unit Tests', () => {
       expect(category.description).toBe('description test');
       expect(category.is_active).toBe(false);
       expect(category.created_at).toBe(created_at);
+      expect(category.deleted_at).toBeNull();
+    });
+  });
+
+  test('should create a category and nested', () => {
+    const faker = CategoryFakeBuilder.aCategoryAndNested();
+    const [category, nested] = faker.build();
+
+    expect(category.category_id).toBeInstanceOf(CategoryId);
+    expect(typeof category.name === 'string').toBeTruthy();
+    expect(typeof category.description === 'string').toBeTruthy();
+    expect(category.is_active).toBe(true);
+    expect(category.created_at).toBeInstanceOf(Date);
+    expect(category.deleted_at).toBeNull();
+
+    expect(nested.category_id).toBeValueObject(category.category_id);
+    expect(nested.name).toBe(category.name);
+    expect(nested.is_active).toBe(true);
+    expect(nested.deleted_at).toBeNull();
+  });
+
+  test('should create many categories and nested', () => {
+    const faker = CategoryFakeBuilder.theCategoriesAndNested(2);
+    const categories = faker.build();
+
+    categories.forEach(([category, nested]) => {
+      expect(category.category_id).toBeInstanceOf(CategoryId);
+      expect(typeof category.name === 'string').toBeTruthy();
+      expect(typeof category.description === 'string').toBeTruthy();
+      expect(category.is_active).toBe(true);
+      expect(category.created_at).toBeInstanceOf(Date);
+      expect(category.deleted_at).toBeNull();
+
+      expect(nested.category_id).toBeValueObject(category.category_id);
+      expect(nested.name).toBe(category.name);
+      expect(nested.is_active).toBe(true);
+      expect(nested.deleted_at).toBeNull();
     });
   });
 });

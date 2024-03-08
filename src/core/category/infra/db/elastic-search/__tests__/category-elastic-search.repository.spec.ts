@@ -32,13 +32,6 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     await repository.insert(category);
     const entity = await repository.findById(category.category_id);
     expect(entity!.toJSON()).toStrictEqual(category.toJSON());
-
-    const document = await esHelper.esClient.get({
-      index: esHelper.indexName,
-      id: category.category_id.id,
-    });
-    //@ts-expect-error - document has _source property
-    expect(document._source.deleted_at).toBeNull();
   });
 
   test('should insert many entities', async () => {
@@ -50,18 +43,6 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     expect(result.length).toBe(2);
     expect(result[0].toJSON()).toStrictEqual(categories[0].toJSON());
     expect(result[1].toJSON()).toStrictEqual(categories[1].toJSON());
-
-    const documents = await esHelper.esClient.mget({
-      index: esHelper.indexName,
-      body: {
-        ids: categories.map((g) => g.category_id.id),
-      },
-    });
-    expect(documents.docs).toHaveLength(2);
-    //@ts-expect-error - document has _source property
-    expect(documents.docs[0]._source.deleted_at).toBeNull();
-    //@ts-expect-error - document has _source property
-    expect(documents.docs[1]._source.deleted_at).toBeNull();
   });
 
   it('should delete a entity', async () => {
@@ -75,15 +56,30 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     await repository.insert(entity);
 
     await repository.delete(entity.category_id);
-    const document = await esHelper.esClient.get({
+    const document = await esHelper.esClient.search({
       index: esHelper.indexName,
-      id: entity.category_id.id,
+      query: {
+        match: {
+          _id: entity.category_id.id,
+        },
+      },
     });
-    //@ts-expect-error - document has _source property
-    expect(document._source.deleted_at).not.toBeNull();
-    //@ts-expect-error - document has _source property
-    const deleted_at = new Date(document._source.deleted_at);
-    expect(deleted_at.toString()).not.toBe('Invalid Date');
+    expect(document.took).toBe(0);
+
+    await repository.insert(entity);
+    entity.markAsDeleted();
+    await repository.update(entity);
+
+    await repository.delete(entity.category_id);
+    const document2 = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.category_id.id,
+        },
+      },
+    });
+    expect(document2.took).toBe(0);
   });
 
   it('should finds a entity by id', async () => {
@@ -101,7 +97,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     entityFound = await repository.findById(entity.category_id);
     expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
 
-    await repository.delete(entity.category_id);
+    entity.markAsDeleted();
+
+    await repository.update(entity);
     await expect(repository.findById(entity.category_id)).resolves.toBeNull();
   });
 
@@ -118,7 +116,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     expect(entities).toHaveLength(1);
     expect(JSON.stringify(entities)).toBe(JSON.stringify([entity]));
 
-    await repository.delete(entity.category_id);
+    entity.markAsDeleted();
+
+    await repository.update(entity);
     entities = await repository.findAll();
     expect(entities).toHaveLength(0);
   });
@@ -134,8 +134,13 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     expect(result[0].toJSON()).toStrictEqual(categories[0].toJSON());
     expect(result[1].toJSON()).toStrictEqual(categories[1].toJSON());
 
-    await repository.delete(categories[0].category_id);
-    await repository.delete(categories[1].category_id);
+    categories[0].markAsDeleted();
+    categories[1].markAsDeleted();
+
+    Promise.all([
+      await repository.update(categories[0]),
+      await repository.update(categories[1]),
+    ]);
 
     const result2 = await repository.findByIds(
       categories.map((g) => g.category_id),
@@ -173,7 +178,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     expect(existsResult2.exists[0]).toBeValueObject(category.category_id);
     expect(existsResult2.not_exists[0]).toBeValueObject(categoryId1);
 
-    await repository.delete(category.category_id);
+    category.markAsDeleted();
+
+    await repository.update(category);
     const existsResult3 = await repository.existsById([category.category_id]);
     expect(existsResult3.exists).toHaveLength(0);
     expect(existsResult3.not_exists).toHaveLength(1);
@@ -182,6 +189,14 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
 
   it('should throw error on update when a entity not found', async () => {
     const entity = Category.fake().aCategory().build();
+    await expect(repository.update(entity)).rejects.toThrow(
+      new NotFoundError(entity.category_id.id, Category),
+    );
+
+    await repository.insert(entity);
+    entity.markAsDeleted();
+    await repository.update(entity);
+
     await expect(repository.update(entity)).rejects.toThrow(
       new NotFoundError(entity.category_id.id, Category),
     );
@@ -210,9 +225,10 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
       const created_at = new Date();
       const categories = Category.fake()
         .theCategories(16)
+        .withName((index) => `Movie ${index}`)
         .withName('Movie')
         .withDescription(null)
-        .withCreatedAt(created_at)
+        .withCreatedAt((index) => new Date(new Date().getTime() + 100 + index))
         .build();
       await repository.bulkInsert(categories);
       const spyToEntity = jest.spyOn(CategoryElasticSearchMapper, 'toEntity');
@@ -232,15 +248,15 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
       });
       const items = searchOutput.items.map((item) => item.toJSON());
       expect(items).toMatchObject(
-        new Array(15).fill({
-          name: 'Movie',
-          description: null,
-          is_active: true,
-          created_at: created_at,
-        }),
+        [...categories]
+          .reverse()
+          .slice(0, 15)
+          .map((item) => item.toJSON()),
       );
 
-      await repository.delete(categories[0].category_id);
+      categories[0].markAsDeleted();
+
+      await repository.update(categories[0]);
 
       const searchOutput2 = await repository.search(new CategorySearchParams());
       expect(searchOutput2).toBeInstanceOf(CategorySearchResult);

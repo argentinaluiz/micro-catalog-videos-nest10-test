@@ -2,12 +2,16 @@ import { GenreFakeBuilder } from './genre-fake.builder';
 import { Uuid } from '../../shared/domain/value-objects/uuid.vo';
 import GenreValidatorFactory from './genre.validator';
 import { AggregateRoot } from '../../shared/domain/aggregate-root';
+import {
+  NestedCategory,
+  NestedCategoryConstructorProps,
+} from '../../category/domain/nested-category.entity';
 import { CategoryId } from '../../category/domain/category.aggregate';
 
 export type GenreConstructorProps = {
   genre_id: GenreId;
   name: string;
-  categories_id: Map<string, CategoryId>;
+  categories: Map<string, NestedCategory>;
   is_active: boolean;
   created_at: Date;
   deleted_at?: Date | null;
@@ -16,7 +20,7 @@ export type GenreConstructorProps = {
 export type GenreCreateCommand = {
   genre_id: GenreId;
   name: string;
-  categories_id: CategoryId[];
+  categories: NestedCategory[];
   is_active: boolean;
   created_at: Date;
 };
@@ -26,7 +30,7 @@ export class GenreId extends Uuid {}
 export class Genre extends AggregateRoot {
   genre_id: GenreId;
   name: string;
-  categories_id: Map<string, CategoryId>;
+  categories: Map<string, NestedCategory>;
   is_active: boolean;
   created_at: Date;
   deleted_at: Date | null = null;
@@ -35,7 +39,7 @@ export class Genre extends AggregateRoot {
     super();
     this.genre_id = props.genre_id;
     this.name = props.name;
-    this.categories_id = props.categories_id;
+    this.categories = props.categories;
     this.is_active = props.is_active;
     this.created_at = props.created_at;
     this.deleted_at = props.deleted_at ?? null;
@@ -44,8 +48,11 @@ export class Genre extends AggregateRoot {
   static create(props: GenreCreateCommand) {
     const genre = new Genre({
       ...props,
-      categories_id: new Map(
-        props.categories_id.map((category_id) => [category_id.id, category_id]),
+      categories: new Map(
+        props.categories.map((category_id) => [
+          category_id.category_id.id,
+          category_id,
+        ]),
       ),
     });
     genre.validate(['name']);
@@ -57,21 +64,61 @@ export class Genre extends AggregateRoot {
     this.validate(['name']);
   }
 
-  addCategoryId(category_id: CategoryId) {
-    this.categories_id.set(category_id.id, category_id);
+  addCategory(categoryProps: NestedCategoryConstructorProps) {
+    const nestedCategory = NestedCategory.create(categoryProps);
+    this.categories.set(nestedCategory.category_id.id, nestedCategory);
   }
 
-  removeCategoryId(category_id: CategoryId) {
-    this.categories_id.delete(category_id.id);
+  removeCategory(categoryId: CategoryId) {
+    const nestedCategory = this.categories.get(categoryId.id);
+
+    if (!nestedCategory) {
+      throw new Error('Category not found');
+    }
+
+    nestedCategory.markAsDeleted();
   }
 
-  syncCategoriesId(categories_id: CategoryId[]) {
-    if (!categories_id.length) {
+  activateCategory(categoryId: CategoryId) {
+    const nestedCategory = this.categories.get(categoryId.id);
+
+    if (!nestedCategory) {
+      throw new Error('Category not found');
+    }
+
+    nestedCategory.activate();
+  }
+
+  deactivateCategory(categoryId: CategoryId) {
+    const nestedCategory = this.categories.get(categoryId.id);
+
+    if (!nestedCategory) {
+      throw new Error('Category not found');
+    }
+
+    nestedCategory.deactivate();
+  }
+
+  changeCategoryName(categoryId: CategoryId, name: string) {
+    const nestedCategory = this.categories.get(categoryId.id);
+
+    if (!nestedCategory) {
+      throw new Error('Category not found');
+    }
+
+    nestedCategory.changeName(name);
+  }
+
+  syncCategoriesId(categoriesProps: NestedCategoryConstructorProps[]) {
+    if (!categoriesProps.length) {
       throw new Error('Categories id is empty');
     }
 
-    this.categories_id = new Map(
-      categories_id.map((category_id) => [category_id.id, category_id]),
+    this.categories = new Map(
+      categoriesProps.map((categoryProps) => [
+        categoryProps.category_id.id,
+        NestedCategory.create(categoryProps),
+      ]),
     );
   }
 
@@ -92,6 +139,14 @@ export class Genre extends AggregateRoot {
     this.is_active = false;
   }
 
+  markAsDeleted() {
+    this.deleted_at = new Date();
+  }
+
+  markAsUndeleted() {
+    this.deleted_at = null;
+  }
+
   static fake() {
     return GenreFakeBuilder;
   }
@@ -104,8 +159,8 @@ export class Genre extends AggregateRoot {
     return {
       genre_id: this.genre_id.id,
       name: this.name,
-      categories_id: Array.from(this.categories_id.values()).map(
-        (category_id) => category_id.id,
+      categories: Array.from(this.categories.values()).map((category) =>
+        category.toJSON(),
       ),
       is_active: this.is_active,
       created_at: this.created_at,

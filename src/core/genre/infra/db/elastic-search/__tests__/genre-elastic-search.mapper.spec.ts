@@ -1,4 +1,5 @@
 import { CategoryId } from '../../../../../category/domain/category.aggregate';
+import { NestedCategory } from '../../../../../category/domain/nested-category.entity';
 import { Genre, GenreId } from '../../../../domain/genre.aggregate';
 import {
   GENRE_DOCUMENT_TYPE_NAME,
@@ -13,7 +14,14 @@ describe('GenreElasticSearchMapper', () => {
   beforeEach(() => {
     genreDocument = {
       genre_name: 'Test',
-      categories: [new CategoryId().id],
+      categories: [
+        {
+          id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
+          name: 'Test',
+          is_active: true,
+          deleted_at: null,
+        },
+      ],
       is_active: true,
       created_at: new Date(),
       deleted_at: null,
@@ -24,11 +32,18 @@ describe('GenreElasticSearchMapper', () => {
     genre = new Genre({
       genre_id: id,
       name: genreDocument.genre_name,
-      categories_id: new Map(
-        genreDocument.categories.map((category_id) => [
-          category_id,
-          new CategoryId(category_id),
-        ]),
+      categories: new Map(
+        genreDocument.categories
+          .map(
+            (category) =>
+              new NestedCategory({
+                category_id: new CategoryId(category.id),
+                name: category.name,
+                is_active: category.is_active,
+                deleted_at: category.deleted_at as null,
+              }),
+          )
+          .map((category) => [category.category_id.id, category]),
       ),
       is_active: genreDocument.is_active,
       created_at: genreDocument.created_at as Date,
@@ -51,6 +66,16 @@ describe('GenreElasticSearchMapper', () => {
         genreDocument,
       );
       expect(result2).toEqual(genre);
+
+      genreDocument.categories[0].deleted_at = new Date();
+      genre.categories.get(genreDocument.categories[0].id)!.deleted_at =
+        genreDocument.categories[0].deleted_at;
+
+      const result3 = GenreElasticSearchMapper.toEntity(
+        genre.genre_id.id,
+        genreDocument,
+      );
+      expect(result3).toEqual(genre);
     });
   });
 
@@ -64,6 +89,15 @@ describe('GenreElasticSearchMapper', () => {
 
       const result2 = GenreElasticSearchMapper.toDocument(genre);
       expect(result2).toEqual(genreDocument);
+
+      genre.categories.get(genreDocument.categories[0].id)!.deleted_at =
+        new Date();
+      genreDocument.categories[0].deleted_at = genre.categories.get(
+        genreDocument.categories[0].id,
+      )!.deleted_at;
+
+      const result3 = GenreElasticSearchMapper.toDocument(genre);
+      expect(result3).toEqual(genreDocument);
     });
   });
 });

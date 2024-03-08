@@ -12,15 +12,21 @@ import {
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
 import { CategoryId } from '../../../../category/domain/category.aggregate';
+import { NestedCategory } from '../../../../category/domain/nested-category.entity';
 
 export const GENRE_DOCUMENT_TYPE_NAME = 'Genre';
 
 export type GenreDocument = {
   genre_name: string;
-  categories: string[];
+  categories: {
+    id: string;
+    name: string;
+    is_active: boolean;
+    deleted_at: Date | string | null;
+  }[];
   is_active: boolean;
   created_at: Date | string;
-  deleted_at: Date | null;
+  deleted_at: Date | string | null;
   type: typeof GENRE_DOCUMENT_TYPE_NAME;
 };
 
@@ -33,11 +39,23 @@ export class GenreElasticSearchMapper {
     return new Genre({
       genre_id: new GenreId(id),
       name: document.genre_name,
-      categories_id: new Map(
-        document.categories.map((category_id) => [
-          category_id,
-          new CategoryId(category_id),
-        ]),
+      categories: new Map(
+        document.categories
+          .map(
+            (category) =>
+              new NestedCategory({
+                category_id: new CategoryId(category.id),
+                name: category.name,
+                is_active: category.is_active,
+                deleted_at:
+                  category.deleted_at === null
+                    ? null
+                    : !(category.deleted_at instanceof Date)
+                      ? new Date(category.deleted_at)
+                      : category.deleted_at,
+              }),
+          )
+          .map((category) => [category.category_id.id, category]),
       ),
       is_active: document.is_active,
       created_at: !(document.created_at instanceof Date)
@@ -55,7 +73,12 @@ export class GenreElasticSearchMapper {
   static toDocument(entity: Genre): GenreDocument {
     return {
       genre_name: entity.name,
-      categories: Array.from(entity.categories_id.keys()),
+      categories: Array.from(entity.categories.values()).map((category) => ({
+        id: category.category_id.id,
+        name: category.name,
+        is_active: category.is_active,
+        deleted_at: category.deleted_at,
+      })),
       is_active: entity.is_active,
       created_at: entity.created_at,
       deleted_at: entity.deleted_at,
@@ -96,7 +119,40 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async findById(id: GenreId): Promise<Genre | null> {
-    const document = await this.getDocumentById(id);
+    const result = await this.esClient.search({
+      index: this.index,
+      query: {
+        bool: {
+          must: [
+            {
+              ids: {
+                values: id.id,
+              },
+            },
+            {
+              match: {
+                type: GENRE_DOCUMENT_TYPE_NAME,
+              },
+            },
+          ],
+          must_not: [
+            {
+              exists: {
+                field: 'deleted_at',
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
+
+    if (docs.length === 0) {
+      return null;
+    }
+
+    const document = docs[0]._source!;
 
     if (!document) {
       return null;
@@ -209,51 +265,14 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async update(entity: Genre): Promise<void> {
-    const document = await this.getDocumentById(entity.genre_id);
-
-    if (!document) {
-      throw new NotFoundError(entity.genre_id.id, this.getEntity());
-    }
-
-    await this.esClient.update({
-      index: this.index,
-      id: entity.genre_id.id,
-      body: {
-        doc: GenreElasticSearchMapper.toDocument(entity),
-      },
-      refresh: true,
-    });
-  }
-
-  async delete(id: GenreId): Promise<void> {
-    const document = await this.getDocumentById(id);
-
-    if (!document) {
-      throw new NotFoundError(id.id, this.getEntity());
-    }
-
-    await this.esClient.update({
-      index: this.index,
-      id: id.id,
-      body: {
-        doc: {
-          ...document,
-          deleted_at: new Date(),
-        },
-      },
-      refresh: true,
-    });
-  }
-
-  private async getDocumentById(id: GenreId): Promise<GenreDocument | null> {
-    const result = await this.esClient.search({
+    const response = await this.esClient.updateByQuery({
       index: this.index,
       query: {
         bool: {
           must: [
             {
               ids: {
-                values: id.id,
+                values: entity.genre_id.id,
               },
             },
             {
@@ -271,15 +290,59 @@ export class GenreElasticSearchRepository implements IGenreRepository {
           ],
         },
       },
+      script: {
+        source: `
+          ctx._source.genre_name = params.genre_name;
+          ctx._source.categories = params.categories;
+          ctx._source.is_active = params.is_active;
+          ctx._source.deleted_at = params.deleted_at;
+        `,
+        params: {
+          genre_name: entity.name,
+          categories: Array.from(entity.categories.values()).map(
+            (category) => ({
+              id: category.category_id.id,
+              name: category.name,
+              is_active: category.is_active,
+              deleted_at: category.deleted_at,
+            }),
+          ),
+          is_active: entity.is_active,
+          deleted_at: entity.deleted_at,
+        },
+      },
+      refresh: true,
     });
 
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
-
-    if (docs.length === 0) {
-      return null;
+    if (response.total !== 1) {
+      throw new NotFoundError(entity.genre_id.id, this.getEntity());
     }
+  }
 
-    return docs[0]._source!;
+  async delete(id: GenreId): Promise<void> {
+    const response = await this.esClient.deleteByQuery({
+      index: this.index,
+      query: {
+        bool: {
+          must: [
+            {
+              ids: {
+                values: id.id,
+              },
+            },
+            {
+              match: {
+                type: GENRE_DOCUMENT_TYPE_NAME,
+              },
+            },
+          ],
+        },
+      },
+      refresh: true,
+    });
+    if (response.total !== 1) {
+      throw new NotFoundError(id.id, this.getEntity());
+    }
   }
 
   async search(props: GenreSearchParams): Promise<GenreSearchResult> {
@@ -311,7 +374,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         query.bool.must.push({
           wildcard: {
             genre_name: {
-              value: `*${props.filter}*`,
+              value: `*${props.filter.name}*`,
               case_insensitive: true,
             },
           },
@@ -321,12 +384,19 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       if (props.filter.categories_id) {
         //@ts-expect-error - must is an array
         query.bool.must.push({
-          terms: {
-            categories: props.filter.categories_id.map((id) => id.id),
+          nested: {
+            path: 'categories',
+            query: {
+              terms: {
+                'categories.id': props.filter.categories_id,
+              },
+            },
           },
         });
       }
     }
+
+    console.dir(query, { depth: null });
 
     const result = await this.esClient.search({
       index: this.index,

@@ -1,6 +1,7 @@
 import { Chance } from 'chance';
 import { Genre, GenreId } from './genre.aggregate';
-import { CategoryId } from '../../category/domain/category.aggregate';
+import { Category } from '../../category/domain/category.aggregate';
+import { NestedCategory } from '../../category/domain/nested-category.entity';
 
 type PropOrFactory<T> = T | ((index: number) => T);
 
@@ -10,12 +11,13 @@ export class GenreFakeBuilder<TBuild = any> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _name: PropOrFactory<string> = (_index) => this.chance.word();
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private _categories_id: PropOrFactory<CategoryId>[] = [];
-
+  private _categories: PropOrFactory<NestedCategory>[] = [];
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _is_active: PropOrFactory<boolean> = (_index) => true;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   private _created_at: PropOrFactory<Date> = (_index) => new Date();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private _deleted_at: PropOrFactory<Date | null> = (_index) => null;
 
   private countObjs;
 
@@ -44,8 +46,8 @@ export class GenreFakeBuilder<TBuild = any> {
     return this;
   }
 
-  addCategoryId(valueOrFactory: PropOrFactory<CategoryId>) {
-    this._categories_id.push(valueOrFactory);
+  addNestedCategory(valueOrFactory: PropOrFactory<NestedCategory>) {
+    this._categories.push(valueOrFactory);
     return this;
   }
 
@@ -69,19 +71,32 @@ export class GenreFakeBuilder<TBuild = any> {
     return this;
   }
 
+  deleted() {
+    this._deleted_at = new Date();
+    return this;
+  }
+
+  undeleted() {
+    this._deleted_at = null;
+    return this;
+  }
+
   build(): TBuild {
     const genres = new Array(this.countObjs).fill(undefined).map((_, index) => {
-      const categoryId = new CategoryId();
-      const categoriesId = this._categories_id.length
-        ? this.callFactory(this._categories_id, index)
-        : [categoryId];
+      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const nestedCategories = this._categories.length
+        ? this.callFactory(this._categories, index)
+        : [nestedCategory];
 
       const genre = new Genre({
         genre_id: this.callFactory(this._genre_id, index),
         name: this.callFactory(this._name, index),
-        categories_id: new Map(categoriesId.map((id) => [id.id, id])),
+        categories: new Map(
+          nestedCategories.map((nested) => [nested.category_id.id, nested]),
+        ),
         is_active: this.callFactory(this._is_active, index),
         created_at: this.callFactory(this._created_at, index),
+        deleted_at: this.callFactory(this._deleted_at, index),
       });
       genre.validate();
       return genre;
@@ -97,13 +112,13 @@ export class GenreFakeBuilder<TBuild = any> {
     return this.getValue('name');
   }
 
-  get categories_id(): CategoryId[] {
-    let categories_id = this.getValue('categories_id');
+  get categories(): NestedCategory[] {
+    let nestedCategories = this.getValue('categories');
 
-    if (!categories_id.length) {
-      categories_id = [new CategoryId()];
+    if (!nestedCategories.length) {
+      nestedCategories = [Category.fake().aCategoryAndNested().build()[1]];
     }
-    return categories_id;
+    return nestedCategories;
   }
 
   get is_active() {

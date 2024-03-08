@@ -102,6 +102,33 @@ describe('Category Without Validator Unit Tests', () => {
     expect(category.is_active).toBe(false);
     expect(category.notification.hasErrors()).toBe(false);
   });
+
+  test('should mark as deleted', () => {
+    const category = new Category({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: null,
+      is_active: true,
+      created_at: new Date(),
+    });
+    category.markAsDeleted();
+    expect(category.deleted_at).not.toBeNull();
+    expect(category.notification.hasErrors()).toBe(false);
+  });
+
+  test('should mark as not deleted', () => {
+    const category = new Category({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: null,
+      is_active: true,
+      created_at: new Date(),
+      deleted_at: new Date(),
+    });
+    category.markAsNotDeleted();
+    expect(category.deleted_at).toBeNull();
+    expect(category.notification.hasErrors()).toBe(false);
+  });
 });
 
 describe('Category Validator', () => {

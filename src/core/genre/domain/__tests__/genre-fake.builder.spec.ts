@@ -1,7 +1,8 @@
 import { Chance } from 'chance';
 import { GenreFakeBuilder } from '../genre-fake.builder';
 import { GenreId } from '../genre.aggregate';
-import { CategoryId } from '../../../category/domain/category.aggregate';
+import { Category } from '../../../category/domain/category.aggregate';
+import { NestedCategory } from '../../../category/domain/nested-category.entity';
 
 describe('GenreFakerBuilder Unit Tests', () => {
   describe('genre_id prop', () => {
@@ -94,45 +95,50 @@ describe('GenreFakerBuilder Unit Tests', () => {
     });
   });
 
-  describe('categories_id prop', () => {
+  describe('categories prop', () => {
     const faker = GenreFakeBuilder.aGenre();
     it('should be empty', () => {
-      expect(faker['_categories_id']).toBeInstanceOf(Array);
+      expect(faker['_categories']).toBeInstanceOf(Array);
     });
 
-    test('withCategoryId', () => {
-      const categoryId1 = new CategoryId();
-      const $this = faker.addCategoryId(categoryId1);
+    test('addNestedCategory', () => {
+      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const $this = faker.addNestedCategory(nestedCategory);
       expect($this).toBeInstanceOf(GenreFakeBuilder);
-      expect(faker['_categories_id']).toStrictEqual([categoryId1]);
+      expect(faker['_categories']).toStrictEqual([nestedCategory]);
 
-      const categoryId2 = new CategoryId();
-      faker.addCategoryId(() => categoryId2);
+      const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
+      faker.addNestedCategory(() => nestedCategory2);
 
       expect([
-        faker['_categories_id'][0],
-        //@ts-expect-error _categories_id is callable
-        faker['_categories_id'][1](),
-      ]).toStrictEqual([categoryId1, categoryId2]);
+        faker['_categories'][0],
+        //@ts-expect-error _categories is callable
+        faker['_categories'][1](),
+      ]).toStrictEqual([nestedCategory, nestedCategory2]);
     });
 
-    it('should pass index to categories_id factory', () => {
-      const categoriesId = [new CategoryId(), new CategoryId()];
-      faker.addCategoryId((index) => categoriesId[index]);
+    it('should pass index to categories factory', () => {
+      const nestedCategories = [
+        Category.fake().aCategoryAndNested().build()[1],
+        Category.fake().aCategoryAndNested().build()[1],
+      ];
+      faker.addNestedCategory((index) => nestedCategories[index]);
       const genre = faker.build();
 
-      expect(genre.categories_id.get(categoriesId[0].id)).toBe(categoriesId[0]);
-
-      const fakerMany = GenreFakeBuilder.theGenres(2);
-      fakerMany.addCategoryId((index) => categoriesId[index]);
-      const genres = fakerMany.build();
-
-      expect(genres[0].categories_id.get(categoriesId[0].id)).toBe(
-        categoriesId[0],
+      expect(genre.categories.get(nestedCategories[0].category_id.id)).toBe(
+        nestedCategories[0],
       );
 
-      expect(genres[1].categories_id.get(categoriesId[1].id)).toBe(
-        categoriesId[1],
+      const fakerMany = GenreFakeBuilder.theGenres(2);
+      fakerMany.addNestedCategory((index) => nestedCategories[index]);
+      const genres = fakerMany.build();
+
+      expect(genres[0].categories.get(nestedCategories[0].category_id.id)).toBe(
+        nestedCategories[0],
+      );
+
+      expect(genres[1].categories.get(nestedCategories[1].category_id.id)).toBe(
+        nestedCategories[1],
       );
     });
   });
@@ -198,32 +204,36 @@ describe('GenreFakerBuilder Unit Tests', () => {
 
     expect(genre.genre_id).toBeInstanceOf(GenreId);
     expect(typeof genre.name === 'string').toBeTruthy();
-    expect(genre.categories_id).toBeInstanceOf(Map);
-    expect(genre.categories_id.size).toBe(1);
-    expect(genre.categories_id.values().next().value).toBeInstanceOf(
-      CategoryId,
+    expect(genre.categories).toBeInstanceOf(Map);
+    expect(genre.categories.size).toBe(1);
+    expect(genre.categories.values().next().value).toBeInstanceOf(
+      NestedCategory,
     );
     expect(genre.is_active).toBeTruthy();
     expect(genre.created_at).toBeInstanceOf(Date);
 
     const created_at = new Date();
     const genreId = new GenreId();
-    const categoryId1 = new CategoryId();
-    const categoryId2 = new CategoryId();
+    const nestedCategory1 = Category.fake().aCategoryAndNested().build()[1];
+    const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
     faker = GenreFakeBuilder.aGenre();
     genre = faker
       .withGenreId(genreId)
       .withName('name test')
-      .addCategoryId(categoryId1)
-      .addCategoryId(categoryId2)
+      .addNestedCategory(nestedCategory1)
+      .addNestedCategory(nestedCategory2)
       .deactivate()
       .withCreatedAt(created_at)
       .build();
 
     expect(genre.genre_id.id).toBe(genreId.id);
     expect(genre.name).toBe('name test');
-    expect(genre.categories_id.get(categoryId1.id)).toBe(categoryId1);
-    expect(genre.categories_id.get(categoryId2.id)).toBe(categoryId2);
+    expect(genre.categories.get(nestedCategory1.category_id.id)).toBe(
+      nestedCategory1,
+    );
+    expect(genre.categories.get(nestedCategory2.category_id.id)).toBe(
+      nestedCategory2,
+    );
     expect(genre.is_active).toBeFalsy();
     expect(genre.created_at).toEqual(created_at);
   });
@@ -233,10 +243,10 @@ describe('GenreFakerBuilder Unit Tests', () => {
     let genres = faker.build();
     genres.forEach((genre) => {
       expect(genre.genre_id).toBeInstanceOf(GenreId);
-      expect(genre.categories_id).toBeInstanceOf(Map);
-      expect(genre.categories_id.size).toBe(1);
-      expect(genre.categories_id.values().next().value).toBeInstanceOf(
-        CategoryId,
+      expect(genre.categories).toBeInstanceOf(Map);
+      expect(genre.categories.size).toBe(1);
+      expect(genre.categories.values().next().value).toBeInstanceOf(
+        NestedCategory,
       );
       expect(genre.is_active).toBeTruthy();
       expect(genre.created_at).toBeInstanceOf(Date);
@@ -244,13 +254,13 @@ describe('GenreFakerBuilder Unit Tests', () => {
 
     const created_at = new Date();
     const genreId = new GenreId();
-    const categoryId1 = new CategoryId();
-    const categoryId2 = new CategoryId();
+    const nestedCategory1 = Category.fake().aCategoryAndNested().build()[1];
+    const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
     genres = faker
       .withGenreId(genreId)
       .withName('name test')
-      .addCategoryId(categoryId1)
-      .addCategoryId(categoryId2)
+      .addNestedCategory(nestedCategory1)
+      .addNestedCategory(nestedCategory2)
       .deactivate()
       .withCreatedAt(created_at)
       .build();
@@ -258,9 +268,13 @@ describe('GenreFakerBuilder Unit Tests', () => {
     genres.forEach((genre) => {
       expect(genre.genre_id.id).toBe(genreId.id);
       expect(genre.name).toBe('name test');
-      expect(genre.categories_id).toBeInstanceOf(Map);
-      expect(genre.categories_id.get(categoryId1.id)).toBe(categoryId1);
-      expect(genre.categories_id.get(categoryId2.id)).toBe(categoryId2);
+      expect(genre.categories).toBeInstanceOf(Map);
+      expect(genre.categories.get(nestedCategory1.category_id.id)).toBe(
+        nestedCategory1,
+      );
+      expect(genre.categories.get(nestedCategory2.category_id.id)).toBe(
+        nestedCategory2,
+      );
       expect(genre.is_active).toBeFalsy();
       expect(genre.created_at).toEqual(created_at);
     });

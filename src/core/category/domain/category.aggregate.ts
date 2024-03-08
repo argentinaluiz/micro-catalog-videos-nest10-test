@@ -1,6 +1,6 @@
 import { CategoryFakeBuilder } from './category-fake.builder';
 import { Uuid } from '../../shared/domain/value-objects/uuid.vo';
-import CategoryValidatorFactory from './category.validator';
+import CategoryValidatorFactory from './category-aggregate.validator';
 import { AggregateRoot } from '../../shared/domain/aggregate-root';
 
 export type CategoryConstructorProps = {
@@ -70,6 +70,14 @@ export class Category extends AggregateRoot {
 
   deactivate() {
     this.is_active = false;
+  }
+
+  markAsDeleted() {
+    this.deleted_at = new Date();
+  }
+
+  markAsNotDeleted() {
+    this.deleted_at = null;
   }
 
   static fake() {

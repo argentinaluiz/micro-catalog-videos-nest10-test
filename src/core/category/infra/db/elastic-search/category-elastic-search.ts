@@ -19,7 +19,7 @@ export type CategoryDocument = {
   description: string | null;
   is_active: boolean;
   created_at: Date | string;
-  deleted_at: Date | null;
+  deleted_at: Date | string | null;
   type: typeof CATEGORY_DOCUMENT_TYPE_NAME;
 };
 
@@ -90,7 +90,40 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   }
 
   async findById(id: CategoryId): Promise<Category | null> {
-    const document = await this.getDocumentById(id);
+    const result = await this.esClient.search({
+      index: this.index,
+      query: {
+        bool: {
+          must: [
+            {
+              ids: {
+                values: id.id,
+              },
+            },
+            {
+              match: {
+                type: CATEGORY_DOCUMENT_TYPE_NAME,
+              },
+            },
+          ],
+          must_not: [
+            {
+              exists: {
+                field: 'deleted_at',
+              },
+            },
+          ],
+        },
+      },
+    });
+
+    const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
+
+    if (docs.length === 0) {
+      return null;
+    }
+
+    const document = docs[0]._source!;
 
     if (!document) {
       return null;
@@ -203,53 +236,14 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   }
 
   async update(entity: Category): Promise<void> {
-    const document = await this.getDocumentById(entity.category_id);
-
-    if (!document) {
-      throw new NotFoundError(entity.category_id.id, this.getEntity());
-    }
-
-    await this.esClient.update({
-      index: this.index,
-      id: entity.category_id.id,
-      body: {
-        doc: CategoryElasticSearchMapper.toDocument(entity),
-      },
-      refresh: true,
-    });
-  }
-
-  async delete(id: CategoryId): Promise<void> {
-    const document = await this.getDocumentById(id);
-
-    if (!document) {
-      throw new NotFoundError(id.id, this.getEntity());
-    }
-
-    await this.esClient.update({
-      index: this.index,
-      id: id.id,
-      body: {
-        doc: {
-          ...document,
-          deleted_at: new Date(),
-        },
-      },
-      refresh: true,
-    });
-  }
-
-  private async getDocumentById(
-    id: CategoryId,
-  ): Promise<CategoryDocument | null> {
-    const result = await this.esClient.search({
+    const response = await this.esClient.updateByQuery({
       index: this.index,
       query: {
         bool: {
           must: [
             {
               ids: {
-                values: id.id,
+                values: entity.category_id.id,
               },
             },
             {
@@ -267,15 +261,52 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
           ],
         },
       },
+      script: {
+        source: `
+          ctx._source.category_name = params.category_name;
+          ctx._source.description = params.description;
+          ctx._source.is_active = params.is_active;
+          ctx._source.deleted_at = params.deleted_at;
+        `,
+        params: {
+          category_name: entity.name,
+          description: entity.description,
+          is_active: entity.is_active,
+          deleted_at: entity.deleted_at,
+        },
+      },
+      refresh: true,
     });
 
-    const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
-
-    if (docs.length === 0) {
-      return null;
+    if (response.total !== 1) {
+      throw new NotFoundError(entity.category_id.id, this.getEntity());
     }
+  }
 
-    return docs[0]._source!;
+  async delete(id: CategoryId): Promise<void> {
+    const response = await this.esClient.deleteByQuery({
+      index: this.index,
+      query: {
+        bool: {
+          must: [
+            {
+              ids: {
+                values: id.id,
+              },
+            },
+            {
+              match: {
+                type: CATEGORY_DOCUMENT_TYPE_NAME,
+              },
+            },
+          ],
+        },
+      },
+      refresh: true,
+    });
+    if (response.total !== 1) {
+      throw new NotFoundError(id.id, this.getEntity());
+    }
   }
 
   async search(props: CategorySearchParams): Promise<CategorySearchResult> {

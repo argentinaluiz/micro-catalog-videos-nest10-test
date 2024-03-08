@@ -16,28 +16,34 @@ export abstract class InMemoryRepository<
   constructor() {}
 
   async insert(entity: E): Promise<void> {
-    this.items.push(entity);
+    this.items.push(this.clone(entity));
   }
 
   async bulkInsert(entities: E[]): Promise<void> {
-    this.items.push(...entities);
+    this.items.push(...entities.map((entity) => this.clone(entity)));
   }
 
   async findById(entityId: ID): Promise<E | null> {
-    return this._get(entityId);
+    const entity = await this._get(entityId);
+    return entity ? this.clone(entity) : null;
   }
 
   async findAll(): Promise<E[]> {
-    return this.items.filter((entity) => !this.isDeleted(entity));
+    return this.items
+      .filter((entity) => !this.isDeleted(entity))
+      .map(this.clone);
   }
 
   async findByIds(ids: ID[]): Promise<E[]> {
     //avoid to return repeated items
-    return this.items.filter((entity) => {
-      return (
-        !this.isDeleted(entity) && ids.some((id) => entity.entity_id.equals(id))
-      );
-    });
+    return this.items
+      .filter((entity) => {
+        return (
+          !this.isDeleted(entity) &&
+          ids.some((id) => entity.entity_id.equals(id))
+        );
+      })
+      .map(this.clone);
   }
 
   async existsById(ids: ID[]): Promise<{ exists: ID[]; not_exists: ID[] }> {
@@ -76,23 +82,16 @@ export abstract class InMemoryRepository<
     const indexFound = this.items.findIndex((i) =>
       i.entity_id.equals(entity.entity_id),
     );
-    this.items[indexFound] = entity;
+    this.items[indexFound] = this.clone(entity);
   }
 
   async delete(id: ID): Promise<void> {
-    await this._get(id);
-    const indexFound = this.items.findIndex(
-      (i) => !this.isDeleted(i) && i.entity_id.equals(id),
-    );
+    const indexFound = this.items.findIndex((i) => i.entity_id.equals(id));
     if (indexFound < 0) {
       throw new NotFoundError(id, this.getEntity());
     }
-    if ('deleted_at' in this.items[indexFound]) {
-      //@ts-expect-error entity can have a deleted_at property
-      this.items[indexFound].deleted_at = new Date();
-    } else {
-      this.items.splice(indexFound, 1);
-    }
+
+    this.items.splice(indexFound, 1);
   }
 
   protected async _get(id: ID): Promise<E | null> {
@@ -104,6 +103,10 @@ export abstract class InMemoryRepository<
 
   protected isDeleted(entity: E): boolean {
     return 'deleted_at' in entity ? entity.deleted_at !== null : false;
+  }
+
+  protected clone(obj: E): E {
+    return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj);
   }
 
   abstract getEntity(): new (...args: any[]) => E;

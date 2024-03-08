@@ -1,5 +1,6 @@
 import { IUseCase } from '../../../../shared/application/use-case-interface';
-import { CategoryId } from '../../../domain/category.aggregate';
+import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
+import { Category, CategoryId } from '../../../domain/category.aggregate';
 import { ICategoryRepository } from '../../../domain/category.repository';
 
 export class DeleteCategoryUseCase
@@ -8,8 +9,17 @@ export class DeleteCategoryUseCase
   constructor(private categoryRepository: ICategoryRepository) {}
 
   async execute(input: DeleteCategoryInput): Promise<DeleteCategoryOutput> {
-    const categoryId = new CategoryId(input.id);
-    await this.categoryRepository.delete(categoryId);
+    const category = await this.categoryRepository.findById(
+      new CategoryId(input.id),
+    );
+
+    if (!category) {
+      throw new NotFoundError(input.id, Category);
+    }
+
+    category.markAsDeleted();
+
+    await this.categoryRepository.update(category);
   }
 }
 

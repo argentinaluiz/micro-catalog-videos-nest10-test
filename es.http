@@ -1,0 +1,38 @@
+POST http://172.17.0.1:9300/test_es_910408/_search
+Content-Type: application/json
+
+{"from":0,"size":2,"sort":{"created_at":"desc"},"query":{"bool":{"must":[{"match":{"type":"Genre"}},{"terms":{"categories.id":["25b80b2b-99b5-4cf5-aa65-dddb0532d3de"]}}],"must_not":[{"exists":{"field":"deleted_at"}}]}}}
+
+###
+POST http://172.17.0.1:9300/test_es_910408/_search
+Content-Type: application/json
+
+###
+POST http://172.17.0.1:9300/test_es_910408/_search
+Content-Type: application/json
+
+{
+    "from": 0,
+    "size": 2,
+    "sort": {
+        "created_at": "desc"
+    },
+    "query": {
+        "nested": {
+                        "path": "categories",
+                        "query": {
+                            "bool": {
+                                "must": [
+                                    {
+                                        "terms": {
+                                            "categories.id": [
+                                                "25b80b2b-99b5-4cf5-aa65-dddb0532d3de"
+                                            ]
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    }
+    }
+}

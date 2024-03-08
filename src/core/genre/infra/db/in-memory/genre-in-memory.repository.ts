@@ -34,7 +34,7 @@ export class GenreInMemoryRepository
         genre.name.toLowerCase().includes(filter.name.toLowerCase());
       const containsCategoriesId =
         filter.categories_id &&
-        filter.categories_id.some((c) => genre.categories_id.has(c.id));
+        filter.categories_id.some((c) => genre.categories.has(c.id));
       return filter.name && filter.categories_id
         ? containsName && containsCategoriesId
         : filter.name

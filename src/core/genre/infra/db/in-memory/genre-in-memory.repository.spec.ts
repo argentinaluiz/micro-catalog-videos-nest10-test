@@ -39,13 +39,13 @@ describe('GenreInMemoryRepository', () => {
     const items = [
       Genre.fake()
         .aGenre()
-        .addCategoryId(categoryId1)
-        .addCategoryId(categoryId2)
+        .addNestedCategory(categoryId1)
+        .addNestedCategory(categoryId2)
         .build(),
       Genre.fake()
         .aGenre()
-        .addCategoryId(categoryId3)
-        .addCategoryId(categoryId4)
+        .addNestedCategory(categoryId3)
+        .addNestedCategory(categoryId4)
         .build(),
     ];
     const filterSpy = jest.spyOn(items, 'filter' as any);
@@ -90,19 +90,19 @@ describe('GenreInMemoryRepository', () => {
       Genre.fake()
         .aGenre()
         .withName('test')
-        .addCategoryId(categoryId1)
-        .addCategoryId(categoryId2)
+        .addNestedCategory(categoryId1)
+        .addNestedCategory(categoryId2)
         .build(),
       Genre.fake()
         .aGenre()
         .withName('fake')
-        .addCategoryId(categoryId3)
-        .addCategoryId(categoryId4)
+        .addNestedCategory(categoryId3)
+        .addNestedCategory(categoryId4)
         .build(),
       Genre.fake()
         .aGenre()
         .withName('test fake')
-        .addCategoryId(categoryId1)
+        .addNestedCategory(categoryId1)
         .build(),
     ];
 
