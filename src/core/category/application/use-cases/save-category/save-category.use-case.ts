@@ -18,7 +18,9 @@ export class SaveCategoryUseCase
     const categoryId = new CategoryId(input.category_id);
     const category = await this.categoryRepo.findById(categoryId);
 
-    return category ? this.updateCategory(input) : this.createCategory(input);
+    return category
+      ? this.updateCategory(input, category)
+      : this.createCategory(input);
   }
 
   private async createCategory(input: SaveCategoryInput) {
@@ -33,10 +35,7 @@ export class SaveCategoryUseCase
     return CategoryOutputMapper.toOutput(entity);
   }
 
-  private async updateCategory(input: SaveCategoryInput) {
-    const categoryId = new CategoryId(input.category_id);
-    const category = await this.categoryRepo.findById(categoryId);
-
+  private async updateCategory(input: SaveCategoryInput, category: Category) {
     if (!category) {
       throw new NotFoundError(input.category_id, Category);
     }

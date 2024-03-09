@@ -20,7 +20,7 @@ export type GenreConstructorProps = {
 export type GenreCreateCommand = {
   genre_id: GenreId;
   name: string;
-  categories: NestedCategory[];
+  categories_props: NestedCategoryConstructorProps[];
   is_active: boolean;
   created_at: Date;
 };
@@ -49,9 +49,9 @@ export class Genre extends AggregateRoot {
     const genre = new Genre({
       ...props,
       categories: new Map(
-        props.categories.map((category_id) => [
-          category_id.category_id.id,
-          category_id,
+        props.categories_props.map((category_props) => [
+          category_props.category_id.id,
+          NestedCategory.create(category_props),
         ]),
       ),
     });
@@ -64,7 +64,7 @@ export class Genre extends AggregateRoot {
     this.validate(['name']);
   }
 
-  addCategory(categoryProps: NestedCategoryConstructorProps) {
+  addNestedCategory(categoryProps: NestedCategoryConstructorProps) {
     const nestedCategory = NestedCategory.create(categoryProps);
     this.categories.set(nestedCategory.category_id.id, nestedCategory);
   }
@@ -73,43 +73,43 @@ export class Genre extends AggregateRoot {
     const nestedCategory = this.categories.get(categoryId.id);
 
     if (!nestedCategory) {
-      throw new Error('Category not found');
+      throw new Error('Nested Category not found');
     }
 
     nestedCategory.markAsDeleted();
   }
 
-  activateCategory(categoryId: CategoryId) {
+  activateNestedCategory(categoryId: CategoryId) {
     const nestedCategory = this.categories.get(categoryId.id);
 
     if (!nestedCategory) {
-      throw new Error('Category not found');
+      throw new Error('Nested Category not found');
     }
 
     nestedCategory.activate();
   }
 
-  deactivateCategory(categoryId: CategoryId) {
+  deactivateNestedCategory(categoryId: CategoryId) {
     const nestedCategory = this.categories.get(categoryId.id);
 
     if (!nestedCategory) {
-      throw new Error('Category not found');
+      throw new Error('Nested Category not found');
     }
 
     nestedCategory.deactivate();
   }
 
-  changeCategoryName(categoryId: CategoryId, name: string) {
+  changeNestedCategoryName(categoryId: CategoryId, name: string) {
     const nestedCategory = this.categories.get(categoryId.id);
 
     if (!nestedCategory) {
-      throw new Error('Category not found');
+      throw new Error('Nested Category not found');
     }
 
     nestedCategory.changeName(name);
   }
 
-  syncCategoriesId(categoriesProps: NestedCategoryConstructorProps[]) {
+  syncNestedCategories(categoriesProps: NestedCategoryConstructorProps[]) {
     if (!categoriesProps.length) {
       throw new Error('Categories id is empty');
     }

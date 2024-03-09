@@ -1,4 +1,5 @@
 import { AggregateRoot } from '../aggregate-root';
+import { Either } from '../either';
 import { InvalidArgumentError } from '../errors/invalid-argument.error';
 import { NotFoundError } from '../errors/not-found.error';
 import { ValueObject } from '../value-object';
@@ -34,16 +35,20 @@ export abstract class InMemoryRepository<
       .map(this.clone);
   }
 
-  async findByIds(ids: ID[]): Promise<E[]> {
+  async findByIds(ids: ID[]): Promise<{ exists: E[]; not_exists: ID[] }> {
     //avoid to return repeated items
-    return this.items
-      .filter((entity) => {
-        return (
-          !this.isDeleted(entity) &&
-          ids.some((id) => entity.entity_id.equals(id))
-        );
-      })
-      .map(this.clone);
+    const foundItems = this.items.filter((entity) => {
+      return (
+        !this.isDeleted(entity) && ids.some((id) => entity.entity_id.equals(id))
+      );
+    });
+    const notFoundIds = ids.filter(
+      (id) => !foundItems.some((entity) => entity.entity_id.equals(id)),
+    );
+    return {
+      exists: foundItems.map(this.clone),
+      not_exists: notFoundIds,
+    };
   }
 
   async existsById(ids: ID[]): Promise<{ exists: ID[]; not_exists: ID[] }> {

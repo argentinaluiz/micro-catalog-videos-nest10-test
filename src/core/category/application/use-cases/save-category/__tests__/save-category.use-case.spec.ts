@@ -39,10 +39,13 @@ describe('SaveCategoryUseCase Unit Tests', () => {
     });
     await useCase.execute(input);
     expect(useCase['updateCategory']).toHaveBeenCalledTimes(1);
-    expect(useCase['updateCategory']).toHaveBeenCalledWith(input);
+    expect(useCase['updateCategory']).toHaveBeenCalledWith(
+      input,
+      expect.any(Category),
+    );
   });
 
-  describe('execute calling createCategory method', () => {
+  describe('execute createCategory method', () => {
     it('should throw an error when entity is not valid', async () => {
       const spyCreateCategory = jest.spyOn(useCase, 'createCategory' as any);
       const input = new SaveCategoryInput({

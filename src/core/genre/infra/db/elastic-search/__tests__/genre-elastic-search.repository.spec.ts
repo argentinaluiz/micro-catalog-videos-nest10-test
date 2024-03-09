@@ -26,7 +26,7 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'Movie',
-      categories: [Category.fake().aNestedCategory().build()],
+      categories_props: [Category.fake().aNestedCategory().build()],
       is_active: false,
       created_at: new Date(),
     });
@@ -38,10 +38,12 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
   test('should insert many entities', async () => {
     const genres = Genre.fake().theGenres(2).build();
     await repository.bulkInsert(genres);
-    const result = await repository.findByIds(genres.map((g) => g.genre_id));
-    expect(result.length).toBe(2);
-    expect(result[0].toJSON()).toStrictEqual(genres[0].toJSON());
-    expect(result[1].toJSON()).toStrictEqual(genres[1].toJSON());
+    const { exists: foundGenres } = await repository.findByIds(
+      genres.map((g) => g.genre_id),
+    );
+    expect(foundGenres.length).toBe(2);
+    expect(foundGenres[0].toJSON()).toStrictEqual(genres[0].toJSON());
+    expect(foundGenres[1].toJSON()).toStrictEqual(genres[1].toJSON());
   });
 
   it('should delete a entity', async () => {
@@ -57,7 +59,7 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
         },
       },
     });
-    expect(document.took).toBe(0);
+    expect(document.hits.hits.length).toBe(0);
 
     await repository.insert(entity);
     entity.markAsDeleted();
@@ -72,7 +74,7 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
         },
       },
     });
-    expect(document2.took).toBe(0);
+    expect(document2.hits.hits.length).toBe(0);
   });
 
   it('should finds a entity by id', async () => {
@@ -108,10 +110,12 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     const genres = Genre.fake().theGenres(2).build();
 
     await repository.bulkInsert(genres);
-    const result = await repository.findByIds(genres.map((g) => g.genre_id));
-    expect(result.length).toBe(2);
-    expect(result[0].toJSON()).toStrictEqual(genres[0].toJSON());
-    expect(result[1].toJSON()).toStrictEqual(genres[1].toJSON());
+    const { exists: foundGenres } = await repository.findByIds(
+      genres.map((g) => g.genre_id),
+    );
+    expect(foundGenres.length).toBe(2);
+    expect(foundGenres[0].toJSON()).toStrictEqual(genres[0].toJSON());
+    expect(foundGenres[1].toJSON()).toStrictEqual(genres[1].toJSON());
 
     genres[0].markAsDeleted();
     genres[1].markAsDeleted();
@@ -121,8 +125,10 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
       await repository.update(genres[1]),
     ]);
 
-    const result2 = await repository.findByIds(genres.map((g) => g.genre_id));
-    expect(result2.length).toBe(0);
+    const { exists: foundGenres2 } = await repository.findByIds(
+      genres.map((g) => g.genre_id),
+    );
+    expect(foundGenres2.length).toBe(0);
   });
 
   it('should return genre id that exists', async () => {

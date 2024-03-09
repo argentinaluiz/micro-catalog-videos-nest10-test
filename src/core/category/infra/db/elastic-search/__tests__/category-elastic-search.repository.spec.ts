@@ -37,12 +37,12 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
   test('should insert many entities', async () => {
     const categories = Category.fake().theCategories(2).build();
     await repository.bulkInsert(categories);
-    const result = await repository.findByIds(
+    const { exists: foundCategories } = await repository.findByIds(
       categories.map((g) => g.category_id),
     );
-    expect(result.length).toBe(2);
-    expect(result[0].toJSON()).toStrictEqual(categories[0].toJSON());
-    expect(result[1].toJSON()).toStrictEqual(categories[1].toJSON());
+    expect(foundCategories.length).toBe(2);
+    expect(foundCategories[0].toJSON()).toStrictEqual(categories[0].toJSON());
+    expect(foundCategories[1].toJSON()).toStrictEqual(categories[1].toJSON());
   });
 
   it('should delete a entity', async () => {
@@ -64,7 +64,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
         },
       },
     });
-    expect(document.took).toBe(0);
+    expect(document.hits.hits.length).toBe(0);
 
     await repository.insert(entity);
     entity.markAsDeleted();
@@ -79,7 +79,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
         },
       },
     });
-    expect(document2.took).toBe(0);
+    expect(document2.hits.hits.length).toBe(0);
   });
 
   it('should finds a entity by id', async () => {
@@ -127,12 +127,12 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     const categories = Category.fake().theCategories(2).build();
 
     await repository.bulkInsert(categories);
-    const result = await repository.findByIds(
+    const { exists: foundCategories } = await repository.findByIds(
       categories.map((g) => g.category_id),
     );
-    expect(result.length).toBe(2);
-    expect(result[0].toJSON()).toStrictEqual(categories[0].toJSON());
-    expect(result[1].toJSON()).toStrictEqual(categories[1].toJSON());
+    expect(foundCategories.length).toBe(2);
+    expect(foundCategories[0].toJSON()).toStrictEqual(categories[0].toJSON());
+    expect(foundCategories[1].toJSON()).toStrictEqual(categories[1].toJSON());
 
     categories[0].markAsDeleted();
     categories[1].markAsDeleted();
@@ -142,10 +142,10 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
       await repository.update(categories[1]),
     ]);
 
-    const result2 = await repository.findByIds(
+    const { exists: foundCategories2 } = await repository.findByIds(
       categories.map((g) => g.category_id),
     );
-    expect(result2.length).toBe(0);
+    expect(foundCategories2.length).toBe(0);
   });
 
   it('should return category id that exists', async () => {
@@ -222,7 +222,6 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
 
   describe('search method tests', () => {
     it('should only apply paginate when other params are null', async () => {
-      const created_at = new Date();
       const categories = Category.fake()
         .theCategories(16)
         .withName((index) => `Movie ${index}`)

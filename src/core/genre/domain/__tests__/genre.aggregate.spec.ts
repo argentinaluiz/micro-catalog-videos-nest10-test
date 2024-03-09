@@ -45,7 +45,7 @@ describe('Genre Without Validator Unit Tests', () => {
       const genre = Genre.create({
         genre_id,
         name,
-        categories: [nestedCategory],
+        categories_props: [nestedCategory],
         is_active,
         created_at,
       });
@@ -62,7 +62,7 @@ describe('Genre Without Validator Unit Tests', () => {
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'Movie',
-      categories: [Category.fake().aCategoryAndNested().build()[1]],
+      categories_props: [Category.fake().aCategoryAndNested().build()[1]],
       is_active: true,
       created_at: new Date(),
     });
@@ -74,26 +74,28 @@ describe('Genre Without Validator Unit Tests', () => {
   });
 
   test('should add category id', () => {
-    const categoryId = new CategoryId();
+    const nestedCategory = Category.fake().aNestedCategory().build();
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'test',
-      categories: [categoryId],
+      categories_props: [nestedCategory],
       is_active: true,
       created_at: new Date(),
     });
-    genre.addCategory(categoryId);
+    genre.addNestedCategory(nestedCategory);
     expect(genre.categories.size).toBe(1);
-    expect(genre.categories).toEqual(new Map([[categoryId.id, categoryId]]));
+    expect(genre.categories).toEqual(
+      new Map([[nestedCategory.category_id.id, nestedCategory]]),
+    );
     expect(Genre.prototype.validate).toHaveBeenCalledTimes(1);
 
-    const categoryId2 = new CategoryId();
-    genre.addCategory(categoryId2);
+    const nestedCategory2 = Category.fake().aNestedCategory().build();
+    genre.addNestedCategory(nestedCategory2);
     expect(genre.categories.size).toBe(2);
     expect(genre.categories).toEqual(
       new Map([
-        [categoryId.id, categoryId],
-        [categoryId2.id, categoryId2],
+        [nestedCategory.category_id.id, nestedCategory],
+        [nestedCategory2.category_id.id, nestedCategory2],
       ]),
     );
     expect(Genre.prototype.validate).toHaveBeenCalledTimes(1);
@@ -103,10 +105,9 @@ describe('Genre Without Validator Unit Tests', () => {
 describe('Genre Validator', () => {
   describe('create command', () => {
     test('should an invalid genre with name property', () => {
-      const categoryId = new CategoryId();
       const genre = Genre.create({
         name: 't'.repeat(256),
-        categories_id: [categoryId],
+        categories_props: [Category.fake().aCategoryAndNested().build()[1]],
       } as any);
       expect(genre.notification.hasErrors()).toBe(true);
       expect(genre.notification).notificationContainsErrorMessages([

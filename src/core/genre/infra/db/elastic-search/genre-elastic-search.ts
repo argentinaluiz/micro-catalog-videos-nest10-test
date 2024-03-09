@@ -188,7 +188,9 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     );
   }
 
-  async findByIds(ids: GenreId[]): Promise<Genre[]> {
+  async findByIds(
+    ids: GenreId[],
+  ): Promise<{ exists: Genre[]; not_exists: GenreId[] }> {
     const result = await this.esClient.search<GenreDocument>({
       index: this.index,
       query: {
@@ -217,9 +219,12 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     });
 
     const docs = result.hits.hits as GetGetResult<GenreDocument>[];
-    return docs.map((doc) =>
-      GenreElasticSearchMapper.toEntity(doc._id, doc._source!),
-    );
+    return {
+      exists: docs.map((doc) =>
+        GenreElasticSearchMapper.toEntity(doc._id, doc._source!),
+      ),
+      not_exists: ids.filter((id) => !docs.some((doc) => doc._id === id.id)),
+    };
   }
 
   async existsById(
@@ -326,8 +331,8 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         bool: {
           must: [
             {
-              ids: {
-                values: id.id,
+              match: {
+                _id: id.id,
               },
             },
             {
@@ -340,7 +345,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       },
       refresh: true,
     });
-    if (response.total !== 1) {
+    if (response.deleted !== 1) {
       throw new NotFoundError(id.id, this.getEntity());
     }
   }
@@ -395,8 +400,6 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         });
       }
     }
-
-    console.dir(query, { depth: null });
 
     const result = await this.esClient.search({
       index: this.index,

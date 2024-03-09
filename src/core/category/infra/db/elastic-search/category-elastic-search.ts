@@ -11,6 +11,7 @@ import {
   SearchTotalHits,
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
+import { Either } from '../../../../shared/domain/either';
 
 export const CATEGORY_DOCUMENT_TYPE_NAME = 'Category';
 
@@ -159,7 +160,9 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     );
   }
 
-  async findByIds(ids: CategoryId[]): Promise<Category[]> {
+  async findByIds(
+    ids: CategoryId[],
+  ): Promise<{ exists: Category[]; not_exists: CategoryId[] }> {
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
       query: {
@@ -188,9 +191,12 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     });
 
     const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
-    return docs.map((doc) =>
-      CategoryElasticSearchMapper.toEntity(doc._id, doc._source!),
-    );
+    return {
+      exists: docs.map((doc) =>
+        CategoryElasticSearchMapper.toEntity(doc._id, doc._source!),
+      ),
+      not_exists: ids.filter((id) => !docs.some((doc) => doc._id === id.id)),
+    };
   }
 
   async existsById(
@@ -290,8 +296,8 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
         bool: {
           must: [
             {
-              ids: {
-                values: id.id,
+              match: {
+                _id: id.id,
               },
             },
             {
@@ -304,7 +310,7 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
       },
       refresh: true,
     });
-    if (response.total !== 1) {
+    if (response.deleted !== 1) {
       throw new NotFoundError(id.id, this.getEntity());
     }
   }

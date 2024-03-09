@@ -8,7 +8,7 @@ export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
   bulkInsert(entities: E[]): Promise<void>;
   findById(id: ID): Promise<E | null>;
   findAll(): Promise<E[]>;
-  findByIds(ids: ID[]): Promise<E[]>;
+  findByIds(ids: ID[]): Promise<{ exists: E[]; not_exists: ID[] }>;
   existsById(ids: ID[]): Promise<{
     exists: ID[];
     not_exists: ID[];

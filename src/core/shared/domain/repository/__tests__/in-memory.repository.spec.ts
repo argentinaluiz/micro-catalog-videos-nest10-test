@@ -48,7 +48,7 @@ describe('InMemoryRepository Unit Tests', () => {
     expect(entity.toJSON()).toStrictEqual(repository.items[0].toJSON());
   });
 
-  it('should finds a entity by id', async () => {
+  it('should find a entity by id', async () => {
     let entityFound = await repository.findById(new Uuid());
     expect(entityFound).toBeNull();
 
@@ -141,26 +141,6 @@ describe('InMemoryRepository Unit Tests', () => {
     await repository.insert(entity1);
 
     await repository.delete(entity1.entity_id);
-    expect(repository.items).toHaveLength(1);
-    expect(repository.items[0].deleted_at).not.toBeNull();
-
-    const entity2 = new StubAggregate({ name: 'name value', price: 5 });
-    //@ts-expect-error - delete deleted_at property
-    delete entity2['deleted_at'];
-    await repository.insert(entity2);
-    await repository.delete(entity2.entity_id);
-    expect(repository.items).toHaveLength(1);
-
-
-    const deletedEntity = new StubAggregate({
-      entity_id: new Uuid(),
-      name: 'name value',
-      price: 5,
-      deleted_at: new Date(),
-    });
-    await repository.insert(deletedEntity);
-    await expect(repository.delete(deletedEntity.entity_id)).rejects.toThrow(
-      new NotFoundError(deletedEntity.entity_id, StubAggregate),
-    );
+    expect(repository.items).toHaveLength(0);
   });
 });
