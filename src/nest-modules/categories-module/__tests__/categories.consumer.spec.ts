@@ -2,7 +2,7 @@ import { DeleteCategoryUseCase } from '../../../core/category/application/use-ca
 import { SaveCategoryUseCase } from '../../../core/category/application/use-cases/save-category/save-category.use-case';
 import { CategoriesConsumer } from '../categories.consumer';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CDCOperation } from '../SchemaChangesDto';
+import { CDCOperation } from '../../kafka-module/cdc.dto';
 import { UnprocessableEntityException } from '@nestjs/common';
 
 describe('CategoriesConsumer Unit Tests', () => {

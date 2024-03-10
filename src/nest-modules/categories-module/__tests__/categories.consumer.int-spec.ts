@@ -11,13 +11,17 @@ import { BadRequestException, INestMicroservice } from '@nestjs/common';
 import { CATEGORY_PROVIDERS } from '../categories.providers';
 import { ICategoryRepository } from '../../../core/category/domain/category.repository';
 import { overrideConfiguration } from '../../config-module/configuration';
-import { DiscoveryModule } from '@golevelup/nestjs-discovery';
-import { CategoryId } from '../../../core/category/domain/category.aggregate';
+import {
+  Category,
+  CategoryId,
+} from '../../../core/category/domain/category.aggregate';
 import { CustomKafkaServer } from '../../kafka-module/servers/custom-kafka-server';
 import { KafkaModule } from '../../kafka-module/kafka.module';
-import { CDCOperation, CDCPayloadDto } from '../SchemaChangesDto';
+import { CDCOperation, CDCPayloadDto } from '../../kafka-module/cdc.dto';
 import { TestExceptionFilter } from '../../shared-module/test-exception-filter';
 import { logLevel } from 'kafkajs';
+import { KConnectEventPatternRegister } from '../../kafka-module/kconnect-event-pattern-register';
+import { sleep } from '../../../core/shared/infra/utils';
 describe('CategoriesConsumer Integration Tests', () => {
   const esHelper = setupElasticSearch();
   const kafkaHelper = setupKafka();
@@ -30,7 +34,7 @@ describe('CategoriesConsumer Integration Tests', () => {
 
   beforeEach(async () => {
     _kafkaConnectPrefix = 'test_prefix' + crypto.randomInt(0, 1000000);
-    _categoriesTopic = KafkaModule.kConnectTopicName(
+    _categoriesTopic = KConnectEventPatternRegister.kConnectTopicName(
       _kafkaConnectPrefix,
       'categories',
     );
@@ -70,22 +74,20 @@ describe('CategoriesConsumer Integration Tests', () => {
             }),
           ],
         }),
-        DiscoveryModule,
         KafkaModule,
-        CategoriesModule,
+        CategoriesModule.forRoot(),
         ElasticSearchModule,
       ],
     }).compile();
+
+    await _nestModule
+      .get(KConnectEventPatternRegister)
+      .registerKConnectTopicDecorator();
 
     _microserviceInst = _nestModule.createNestMicroservice({
       strategy: _kafkaServer,
     });
   });
-
-  async function startMicroservice() {
-    await _microserviceInst.init();
-    await _microserviceInst.listen();
-  }
 
   afterEach(async () => {
     await _microserviceInst.close();
@@ -110,8 +112,7 @@ describe('CategoriesConsumer Integration Tests', () => {
       },
     );
     _microserviceInst.useGlobalFilters(new exceptionFilterClass());
-    await startMicroservice();
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    await _microserviceInst.listen();
 
     const message = {};
 
@@ -128,14 +129,8 @@ describe('CategoriesConsumer Integration Tests', () => {
     await sleep(1000);
   });
 
-  test('should sync a category', async () => {
-    await startMicroservice();
-    const categoryId = new CategoryId(crypto.randomUUID());
-
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-    //iniciar no teste para deixar o tópico do sink do connect ser criado antes da criação automático do Nest.js
-    //senão vai lançar erro de tópico sem líder
+  test('should create a category', async () => {
+    const categoryId = new CategoryId();
 
     const message: CDCPayloadDto = {
       op: CDCOperation.CREATE,
@@ -149,6 +144,9 @@ describe('CategoriesConsumer Integration Tests', () => {
       },
     };
 
+    //iniciar no teste para deixar o tópico do sink do connect ser criado antes da criação automático do Nest.js
+    //senão vai lançar erro de tópico sem líder
+    await _microserviceInst.listen();
     await _kafkaServer['producer'].send({
       topic: _categoriesTopic,
       messages: [
@@ -170,5 +168,76 @@ describe('CategoriesConsumer Integration Tests', () => {
     expect(category!.description).toEqual('description');
     expect(category!.is_active).toEqual(true);
     expect(category!.created_at).toEqual(new Date('2021-01-01T00:00:00'));
+  });
+
+  test('should update a category', async () => {
+    const category = Category.fake().aCategory().build();
+    const repository = _microserviceInst.get<ICategoryRepository>(
+      CATEGORY_PROVIDERS.REPOSITORIES.CATEGORY_REPOSITORY.provide,
+    );
+    await repository.insert(category);
+
+    const message: CDCPayloadDto = {
+      op: CDCOperation.UPDATE,
+      before: null,
+      after: {
+        id: category.category_id.id,
+        name: 'name',
+        description: 'description',
+        is_active: true,
+        created_at: '2021-01-01T00:00:00',
+      },
+    };
+
+    await _microserviceInst.listen();
+    _kafkaServer['producer'].send({
+      topic: _categoriesTopic,
+      messages: [
+        {
+          value: JSON.stringify(message),
+        },
+      ],
+    });
+
+    await sleep(1000);
+
+    const updatedCategory = await repository.findById(category.category_id);
+    expect(updatedCategory).toBeDefined();
+    expect(updatedCategory!.name).toEqual('name');
+    expect(updatedCategory!.description).toEqual('description');
+    expect(updatedCategory!.is_active).toEqual(true);
+    expect(updatedCategory!.created_at).toEqual(
+      new Date('2021-01-01T00:00:00'),
+    );
+  });
+
+  test('should delete a category', async () => {
+    const category = Category.fake().aCategory().build();
+    const repository = _microserviceInst.get<ICategoryRepository>(
+      CATEGORY_PROVIDERS.REPOSITORIES.CATEGORY_REPOSITORY.provide,
+    );
+    await repository.insert(category);
+
+    const message: CDCPayloadDto = {
+      op: CDCOperation.DELETE,
+      before: {
+        id: category.category_id.id,
+      },
+      after: null,
+    };
+
+    await _microserviceInst.listen();
+    await _kafkaServer['producer'].send({
+      topic: _categoriesTopic,
+      messages: [
+        {
+          value: JSON.stringify(message),
+        },
+      ],
+    });
+
+    await sleep(1000);
+
+    await expect(repository.findById(category.category_id)).resolves.toBeNull();
   });
 });

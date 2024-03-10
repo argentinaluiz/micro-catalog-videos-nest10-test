@@ -20,7 +20,7 @@ describe('DeleteCategoryUseCase Integration Tests', () => {
 
   it('should throws error when entity not found', async () => {
     const categoryId = new CategoryId();
-    await expect(() => useCase.execute({ id: categoryId.id })).rejects.toThrow(
+    await expect(() => useCase.execute(categoryId.id)).rejects.toThrow(
       new NotFoundError(categoryId.id, Category),
     );
   });
@@ -28,9 +28,7 @@ describe('DeleteCategoryUseCase Integration Tests', () => {
   it('should delete a category', async () => {
     const category = Category.fake().aCategory().build();
     await repository.insert(category);
-    await useCase.execute({
-      id: category.category_id.id,
-    });
+    await useCase.execute(category.category_id.id);
     const noEntity = await repository.findById(category.category_id);
     expect(noEntity).toBeNull();
   });

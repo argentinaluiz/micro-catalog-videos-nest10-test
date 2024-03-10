@@ -3,18 +3,14 @@ import { NotFoundError } from '../../../../shared/domain/errors/not-found.error'
 import { Category, CategoryId } from '../../../domain/category.aggregate';
 import { ICategoryRepository } from '../../../domain/category.repository';
 
-export class DeleteCategoryUseCase
-  implements IUseCase<DeleteCategoryInput, DeleteCategoryOutput>
-{
+export class DeleteCategoryUseCase implements IUseCase<string, void> {
   constructor(private categoryRepository: ICategoryRepository) {}
 
-  async execute(input: DeleteCategoryInput): Promise<DeleteCategoryOutput> {
-    const category = await this.categoryRepository.findById(
-      new CategoryId(input.id),
-    );
+  async execute(id: string): Promise<void> {
+    const category = await this.categoryRepository.findById(new CategoryId(id));
 
     if (!category) {
-      throw new NotFoundError(input.id, Category);
+      throw new NotFoundError(id, Category);
     }
 
     category.markAsDeleted();
@@ -22,9 +18,3 @@ export class DeleteCategoryUseCase
     await this.categoryRepository.update(category);
   }
 }
-
-export type DeleteCategoryInput = {
-  id: string;
-};
-
-type DeleteCategoryOutput = void;

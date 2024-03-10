@@ -16,7 +16,7 @@ describe('DeleteGenreUseCase Unit Tests', () => {
   it('should throws error when entity not found', async () => {
     const genreId = new GenreId();
 
-    await expect(() => useCase.execute({ id: genreId.id })).rejects.toThrow(
+    await expect(() => useCase.execute(genreId.id)).rejects.toThrow(
       new NotFoundError(genreId.id, Genre),
     );
   });
@@ -32,9 +32,7 @@ describe('DeleteGenreUseCase Unit Tests', () => {
       }),
     ];
     repository.items = items;
-    await useCase.execute({
-      id: items[0].genre_id.id,
-    });
+    await useCase.execute(items[0].genre_id.id);
     expect(repository.findAll()).resolves.toHaveLength(0);
   });
 });

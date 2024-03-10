@@ -1,7 +1,7 @@
 import { Controller, Inject, Logger, ValidationPipe } from '@nestjs/common';
 import { Payload } from '@nestjs/microservices';
 import { DeleteCategoryUseCase } from '../../core/category/application/use-cases/delete-category/delete-category.use-case';
-import { CDCPayloadDto } from './SchemaChangesDto';
+import { CDCPayloadDto } from '../kafka-module/cdc.dto';
 import { SaveCategoryUseCase } from '../../core/category/application/use-cases/save-category/save-category.use-case';
 import { SaveCategoryInput } from '../../core/category/application/use-cases/save-category/save-category.input';
 import { KConnectEventPattern } from '../kafka-module/kconnect-event-pattern.decorator';
@@ -22,7 +22,6 @@ export class CategoriesConsumer {
     //@Payload() message: SchemaPayloadDto,
     //@Ctx() context: KafkaContext,
   ) {
-    console.log(message);
     switch (message.op) {
       case 'r':
         this.logger.log('[INFO] [CategoriesConsumer] - Discarding read event');

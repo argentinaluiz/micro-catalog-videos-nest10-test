@@ -125,8 +125,8 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         bool: {
           must: [
             {
-              ids: {
-                values: id.id,
+              match: {
+                _id: id.id,
               },
             },
             {
@@ -300,6 +300,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
           ctx._source.genre_name = params.genre_name;
           ctx._source.categories = params.categories;
           ctx._source.is_active = params.is_active;
+          ctx._source.created_at = params.created_at;
           ctx._source.deleted_at = params.deleted_at;
         `,
         params: {
@@ -313,6 +314,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
             }),
           ),
           is_active: entity.is_active,
+          created_at: entity.created_at,
           deleted_at: entity.deleted_at,
         },
       },

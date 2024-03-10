@@ -1,5 +1,4 @@
 import { SaveCategoryUseCase } from '../save-category.use-case';
-
 import { Category, CategoryId } from '../../../../domain/category.aggregate';
 import { SaveCategoryInput } from '../save-category.input';
 import { CategoryElasticSearchRepository } from '../../../../infra/db/elastic-search/category-elastic-search';
@@ -34,10 +33,7 @@ describe('SaveCategoryUseCase Integration Tests', () => {
     const entity = await repository.findById(new CategoryId(uuid));
     expect(output).toStrictEqual({
       id: uuid,
-      name: 'test',
-      description: 'some description',
-      is_active: false,
-      created_at,
+      created: true,
     });
     expect(entity).toMatchObject({
       name: 'test',
@@ -61,14 +57,11 @@ describe('SaveCategoryUseCase Integration Tests', () => {
         created_at: created_at,
       }),
     );
-    const entity = await repository.findById(new CategoryId(uuid));
     expect(output).toStrictEqual({
       id: uuid,
-      name: 'test',
-      description: 'some description',
-      is_active: false,
-      created_at,
+      created: true,
     });
+    const entity = await repository.findById(new CategoryId(uuid));
     expect(entity).toMatchObject({
       name: 'test',
       description: 'some description',

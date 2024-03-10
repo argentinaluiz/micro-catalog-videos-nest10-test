@@ -10,7 +10,7 @@ import {
 } from 'class-validator';
 
 export type SaveCategoryInputConstructorProps = {
-  category_id?: string;
+  category_id: string;
   name: string;
   description: string | null;
   is_active: boolean;
@@ -20,8 +20,8 @@ export type SaveCategoryInputConstructorProps = {
 export class SaveCategoryInput {
   @IsUUID('4')
   @IsString()
-  @IsOptional()
-  category_id?: string;
+  @IsNotEmpty()
+  category_id: string;
 
   @IsString()
   @IsNotEmpty()

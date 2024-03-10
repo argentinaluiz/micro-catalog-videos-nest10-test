@@ -6,7 +6,6 @@ import { ICategoryRepository } from '../../core/category/domain/category.reposit
 import { CategoryElasticSearchRepository } from '../../core/category/infra/db/elastic-search/category-elastic-search';
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import { SaveCategoryUseCase } from '../../core/category/application/use-cases/save-category/save-category.use-case';
-import { CategoriesConsumer } from './categories.consumer';
 
 export const REPOSITORIES = {
   CATEGORY_REPOSITORY: {

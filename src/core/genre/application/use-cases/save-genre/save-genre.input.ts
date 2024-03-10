@@ -4,14 +4,13 @@ import {
   IsBoolean,
   IsDate,
   IsNotEmpty,
-  IsOptional,
   IsString,
   IsUUID,
   validateSync,
 } from 'class-validator';
 
 export type SaveGenreInputConstructorProps = {
-  genre_id?: string;
+  genre_id: string;
   name: string;
   categories_id: string[];
   is_active: boolean;
@@ -21,8 +20,8 @@ export type SaveGenreInputConstructorProps = {
 export class SaveGenreInput {
   @IsUUID('4')
   @IsString()
-  @IsOptional()
-  genre_id?: string;
+  @IsNotEmpty()
+  genre_id: string;
 
   @IsString()
   @IsNotEmpty()

@@ -75,10 +75,7 @@ describe('SaveCategoryUseCase Unit Tests', () => {
       expect(spyInsert).toHaveBeenCalledTimes(1);
       expect(output).toStrictEqual({
         id: categoryId,
-        name: 'test',
-        description: 'some description',
-        is_active: false,
-        created_at: repository.items[0].created_at,
+        created: true,
       });
     });
   });
@@ -114,10 +111,7 @@ describe('SaveCategoryUseCase Unit Tests', () => {
       expect(spyUpdate).toHaveBeenCalledTimes(1);
       expect(output).toStrictEqual({
         id: repository.items[0].category_id.id,
-        name: 'test',
-        description: 'some description',
-        is_active: false,
-        created_at: repository.items[0].created_at,
+        created: false,
       });
     });
   });

@@ -6,6 +6,7 @@ import { Controller, INestMicroservice } from '@nestjs/common';
 import { logLevel } from 'kafkajs';
 import { setupKafka } from '../../../../core/shared/infra/testing/helpers';
 import { CustomKafkaServer } from '../custom-kafka-server';
+import { sleep } from '../../../../core/shared/infra/utils';
 
 const _topic = 'schematest';
 
@@ -87,7 +88,6 @@ describe('CustomKafkaServer Integration Tests', () => {
     _microserviceInst = _nestModule.createNestMicroservice({
       strategy: _kafkaServer,
     });
-    await _microserviceInst.init();
     await _microserviceInst.listen();
   });
 
@@ -119,8 +119,6 @@ describe('CustomKafkaServer Integration Tests', () => {
       ],
     });
 
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
     await sleep(1000);
 
     expect(SchemaRegistryConsumer.spyConsumer).toHaveBeenCalledTimes(1);

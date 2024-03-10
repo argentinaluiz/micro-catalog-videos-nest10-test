@@ -97,8 +97,8 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
         bool: {
           must: [
             {
-              ids: {
-                values: id.id,
+              match: {
+                _id: id.id,
               },
             },
             {
@@ -272,12 +272,14 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
           ctx._source.category_name = params.category_name;
           ctx._source.description = params.description;
           ctx._source.is_active = params.is_active;
+          ctx._source.created_at = params.created_at;
           ctx._source.deleted_at = params.deleted_at;
         `,
         params: {
           category_name: entity.name,
           description: entity.description,
           is_active: entity.is_active,
+          created_at: entity.created_at,
           deleted_at: entity.deleted_at,
         },
       },

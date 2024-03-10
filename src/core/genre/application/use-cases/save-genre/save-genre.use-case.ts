@@ -1,7 +1,6 @@
 import { IUseCase } from '../../../../shared/application/use-case-interface';
 import { IGenreRepository } from '../../../domain/genre.repository';
 import { Genre, GenreId } from '../../../domain/genre.aggregate';
-import { GenreOutput, GenreOutputMapper } from '../common/genre-output';
 import { EntityValidationError } from '../../../../shared/domain/validators/validation.error';
 import { SaveGenreInput } from './save-genre.input';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
@@ -20,7 +19,7 @@ export class SaveGenreUseCase
     private categoryRepo: ICategoryRepository,
   ) {}
 
-  async execute(input: SaveGenreInput): Promise<GenreOutput> {
+  async execute(input: SaveGenreInput): Promise<SaveGenreOutput> {
     const genreId = new GenreId(input.genre_id);
     const genre = await this.genreRepo.findById(genreId);
 
@@ -45,7 +44,7 @@ export class SaveGenreUseCase
     }
 
     await this.genreRepo.insert(entity);
-    return GenreOutputMapper.toOutput(entity);
+    return { id: entity.genre_id.id, created: true };
   }
 
   private async updateGenre(input: SaveGenreInput, genre: Genre) {
@@ -75,7 +74,7 @@ export class SaveGenreUseCase
 
     await this.genreRepo.update(genre);
 
-    return GenreOutputMapper.toOutput(genre);
+    return { id: genre.genre_id.id, created: false };
   }
 
   private async getCategoriesProps(
@@ -105,4 +104,4 @@ export class SaveGenreUseCase
   }
 }
 
-export type SaveGenreOutput = GenreOutput;
+export type SaveGenreOutput = { id: string; created: boolean };

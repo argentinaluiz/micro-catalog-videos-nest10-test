@@ -13,11 +13,12 @@ import { INestMicroservice } from '@nestjs/common';
 import { CATEGORY_PROVIDERS } from '../categories.providers';
 import { ICategoryRepository } from '../../../core/category/domain/category.repository';
 import { overrideConfiguration } from '../../config-module/configuration';
-import { DiscoveryModule } from '@golevelup/nestjs-discovery';
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import { CategoryId } from '../../../core/category/domain/category.aggregate';
 import { CustomKafkaServer } from '../../kafka-module/servers/custom-kafka-server';
+import { KConnectEventPatternRegister } from '../../kafka-module/kconnect-event-pattern-register';
 import { KafkaModule } from '../../kafka-module/kafka.module';
+import { sleep } from '../../../core/shared/infra/utils';
 describe.skip('CategoriesConsumer Integration Tests', () => {
   const esHelper = setupElasticSearch();
 
@@ -210,12 +211,15 @@ describe.skip('CategoriesConsumer Integration Tests', () => {
             }),
           ],
         }),
-        DiscoveryModule,
         KafkaModule,
-        CategoriesModule,
+        CategoriesModule.forRoot(),
         ElasticSearchModule,
       ],
     }).compile();
+
+    await _nestModule
+      .get(KConnectEventPatternRegister)
+      .registerKConnectTopicDecorator();
 
     _kafkaServer = new CustomKafkaServer({
       schemaRegistry: new SchemaRegistry({
@@ -271,8 +275,6 @@ describe.skip('CategoriesConsumer Integration Tests', () => {
     INSERT INTO categories (id, name, description, is_active, created_at) VALUES ("${categoryId}", "name", "description", true, "2021-01-01T00:00:00");
     `);
 
-    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
     await sleep(1000);
 
     //iniciar no teste para deixar o tópico do sink do connect ser criado antes da criação automático do Nest.js
@@ -280,7 +282,6 @@ describe.skip('CategoriesConsumer Integration Tests', () => {
     _microserviceInst = _nestModule.createNestMicroservice({
       strategy: _kafkaServer,
     });
-    await _microserviceInst.init();
     await _microserviceInst.listen();
 
     const repository = _microserviceInst.get<ICategoryRepository>(

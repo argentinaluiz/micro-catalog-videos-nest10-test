@@ -15,7 +15,7 @@ describe('DeleteCategoryUseCase Unit Tests', () => {
   it('should throws error when entity not found', async () => {
     const categoryId = new CategoryId();
 
-    await expect(() => useCase.execute({ id: categoryId.id })).rejects.toThrow(
+    await expect(() => useCase.execute(categoryId.id)).rejects.toThrow(
       new NotFoundError(categoryId.id, Category),
     );
   });
@@ -31,9 +31,7 @@ describe('DeleteCategoryUseCase Unit Tests', () => {
       }),
     ];
     repository.items = items;
-    await useCase.execute({
-      id: items[0].category_id.id,
-    });
+    await useCase.execute(items[0].category_id.id);
     expect(repository.findAll()).resolves.toHaveLength(0);
   });
 });

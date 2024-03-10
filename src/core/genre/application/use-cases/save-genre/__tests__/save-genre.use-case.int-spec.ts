@@ -43,17 +43,7 @@ describe('SaveGenreUseCase Integration Tests', () => {
     );
     expect(output).toStrictEqual({
       id: uuid,
-      name: 'test',
-      categories: [
-        {
-          id: category.category_id.id,
-          name: category.name,
-          is_active: category.is_active,
-          deleted_at: null,
-        },
-      ],
-      is_active: false,
-      created_at,
+      created: true,
     });
     const entity = await genreRepo.findById(new GenreId(uuid));
     expect(entity).toMatchObject({
@@ -75,7 +65,6 @@ describe('SaveGenreUseCase Integration Tests', () => {
   });
 
   it('should update a genre', async () => {
-    const uuid = '4e9e2e4e-0d1a-4a4b-8c0a-5b0e4e4e4e4e';
     const created_at = new Date();
     const genre = Genre.fake().aGenre().build();
     await genreRepo.insert(genre);
@@ -83,7 +72,7 @@ describe('SaveGenreUseCase Integration Tests', () => {
     await categoryRepo.insert(category);
     const output = await useCase.execute(
       new SaveGenreInput({
-        genre_id: uuid,
+        genre_id: genre.genre_id.id,
         name: 'test',
         categories_id: [category.category_id.id],
         is_active: false,
@@ -91,20 +80,10 @@ describe('SaveGenreUseCase Integration Tests', () => {
       }),
     );
     expect(output).toStrictEqual({
-      id: uuid,
-      name: 'test',
-      categories: [
-        {
-          id: category.category_id.id,
-          name: category.name,
-          is_active: category.is_active,
-          deleted_at: null,
-        },
-      ],
-      is_active: false,
-      created_at,
+      id: genre.genre_id.id,
+      created: false,
     });
-    const entity = await genreRepo.findById(new GenreId(uuid));
+    const entity = await genreRepo.findById(genre.genre_id);
     expect(entity).toMatchObject({
       name: 'test',
       categories: new Map([

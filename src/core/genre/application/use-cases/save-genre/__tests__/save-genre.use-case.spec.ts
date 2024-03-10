@@ -118,17 +118,7 @@ describe('SaveGenreUseCase Unit Tests', () => {
       expect(spyInsert).toHaveBeenCalledTimes(1);
       expect(output).toStrictEqual({
         id: genreId,
-        name: 'test',
-        categories: [
-          {
-            id: category.category_id.id,
-            name: category.name,
-            is_active: category.is_active,
-            deleted_at: null,
-          },
-        ],
-        is_active: false,
-        created_at: genreRepo.items[0].created_at,
+        created: true,
       });
     });
   });
@@ -168,17 +158,7 @@ describe('SaveGenreUseCase Unit Tests', () => {
       expect(spyUpdate).toHaveBeenCalledTimes(1);
       expect(output).toStrictEqual({
         id: genreRepo.items[0].genre_id.id,
-        name: 'test',
-        categories: [
-          {
-            id: category.category_id.id,
-            name: category.name,
-            is_active: category.is_active,
-            deleted_at: null,
-          },
-        ],
-        is_active: false,
-        created_at: genreRepo.items[0].created_at,
+        created: false,
       });
     });
   });

@@ -1,4 +1,4 @@
-import { NestFactory } from '@nestjs/core';
+import { DiscoveryService, NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { MicroserviceOptions } from '@nestjs/microservices';
 import { CustomKafkaRetriableServer } from '../nest-modules/kafka-module/servers/custom-kafka-retriable-server';
@@ -7,6 +7,8 @@ import { ConfigService } from '@nestjs/config';
 import { SchemaRegistry } from '@kafkajs/confluent-schema-registry';
 import { RetryTopicNaming } from 'kafkajs-async-retry';
 import { CustomKafkaRetriableErrorFilter } from '../nest-modules/kafka-module/error-filters/custom-kafka-retriable-error.filter';
+import { KafkaModule } from '../nest-modules/kafka-module/kafka.module';
+import { KConnectEventPatternRegister } from '../nest-modules/kafka-module/kconnect-event-pattern-register';
 // import { CustomKafkaRetriableWithCacheServer } from '../nest-modules/kafka-module/servers/custom-kafka-retriable-with-cache-server';
 // import { CustomKafkaRetriableWithCacheErrorFilter } from '../nest-modules/kafka-module/error-filters/custom-kafka-retriable-with-cache-error.filter';
 //import { CACHE_MANAGER } from '@nestjs/cache-manager';
@@ -50,6 +52,8 @@ async function bootstrap() {
     },
   );
 
+  await app.get(KConnectEventPatternRegister).registerKConnectTopicDecorator();
+
   // const cache = app.get(CACHE_MANAGER);
   // app['server'].setCache(cache);
   // const app = await NestFactory.create(AppModule);
@@ -87,7 +91,6 @@ async function bootstrap() {
 
   app.useGlobalFilters(new CustomKafkaRetriableErrorFilter());
   //  app.useGlobalFilters(new AsyncKafkaErrorFilter(cache));
-  await app.init();
   await app.listen();
 }
 bootstrap();

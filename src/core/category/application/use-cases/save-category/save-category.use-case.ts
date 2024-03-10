@@ -1,10 +1,6 @@
 import { IUseCase } from '../../../../shared/application/use-case-interface';
 import { ICategoryRepository } from '../../../domain/category.repository';
 import { Category, CategoryId } from '../../../domain/category.aggregate';
-import {
-  CategoryOutput,
-  CategoryOutputMapper,
-} from '../common/category-output';
 import { EntityValidationError } from '../../../../shared/domain/validators/validation.error';
 import { SaveCategoryInput } from './save-category.input';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
@@ -14,7 +10,7 @@ export class SaveCategoryUseCase
 {
   constructor(private categoryRepo: ICategoryRepository) {}
 
-  async execute(input: SaveCategoryInput): Promise<CategoryOutput> {
+  async execute(input: SaveCategoryInput): Promise<SaveCategoryOutput> {
     const categoryId = new CategoryId(input.category_id);
     const category = await this.categoryRepo.findById(categoryId);
 
@@ -32,7 +28,7 @@ export class SaveCategoryUseCase
       throw new EntityValidationError(entity.notification.toJSON());
     }
     await this.categoryRepo.insert(entity);
-    return CategoryOutputMapper.toOutput(entity);
+    return { id: entity.category_id.id, created: true };
   }
 
   private async updateCategory(input: SaveCategoryInput, category: Category) {
@@ -43,13 +39,7 @@ export class SaveCategoryUseCase
     category.changeName(input.name);
     category.changeDescription(input.description);
 
-    if (input.is_active === true) {
-      category.activate();
-    }
-
-    if (input.is_active === false) {
-      category.deactivate();
-    }
+    input.is_active === true ? category.activate() : category.deactivate();
 
     category.changeCreatedAt(input.created_at);
 
@@ -59,8 +49,8 @@ export class SaveCategoryUseCase
 
     await this.categoryRepo.update(category);
 
-    return CategoryOutputMapper.toOutput(category);
+    return { id: category.category_id.id, created: false };
   }
 }
 
-export type SaveCategoryOutput = CategoryOutput;
+export type SaveCategoryOutput = { id: string; created: boolean };

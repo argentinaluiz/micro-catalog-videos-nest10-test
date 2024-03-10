@@ -20,7 +20,7 @@ describe('DeleteGenreUseCase Integration Tests', () => {
 
   it('should throws error when entity not found', async () => {
     const genreId = new GenreId();
-    await expect(() => useCase.execute({ id: genreId.id })).rejects.toThrow(
+    await expect(() => useCase.execute(genreId.id)).rejects.toThrow(
       new NotFoundError(genreId.id, Genre),
     );
   });
@@ -28,9 +28,7 @@ describe('DeleteGenreUseCase Integration Tests', () => {
   it('should delete a genre', async () => {
     const genre = Genre.fake().aGenre().build();
     await repository.insert(genre);
-    await useCase.execute({
-      id: genre.genre_id.id,
-    });
+    await useCase.execute(genre.genre_id.id);
     const noEntity = await repository.findById(genre.genre_id);
     expect(noEntity).toBeNull();
   });

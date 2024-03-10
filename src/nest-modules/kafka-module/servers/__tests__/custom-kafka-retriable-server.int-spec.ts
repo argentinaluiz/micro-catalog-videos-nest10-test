@@ -16,6 +16,7 @@ import {
 import { CustomKafkaRetriableErrorFilter } from '../../error-filters/custom-kafka-retriable-error.filter';
 import { setupKafka } from '../../../../core/shared/infra/testing/helpers';
 import { CustomKafkaRetriableServer } from '../custom-kafka-retriable-server';
+import { sleep } from '../../../../core/shared/infra/utils';
 
 const _topic = 'retry-topic';
 const _groupIdPrefix = 'test_group';
@@ -90,7 +91,6 @@ describe('CustomKafkaRetriableServer Integration Tests', () => {
 
     _microserviceInst.useGlobalFilters(new CustomKafkaRetriableErrorFilter());
 
-    await _microserviceInst.init();
     await _microserviceInst.listen();
   });
 
@@ -111,8 +111,6 @@ describe('CustomKafkaRetriableServer Integration Tests', () => {
       ],
     });
 
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
     await sleep(6000);
 
     expect(_consumerClass.spyConsumerMessage).toHaveBeenCalledTimes(4);
@@ -163,8 +161,6 @@ describe('CustomKafkaRetriableServer Integration Tests', () => {
       ],
     });
 
-    const sleep = (ms: number) =>
-      new Promise((resolve) => setTimeout(resolve, ms));
     await sleep(1500);
 
     expect(_consumerClass.spyConsumerMessage).toHaveBeenCalledTimes(1);
