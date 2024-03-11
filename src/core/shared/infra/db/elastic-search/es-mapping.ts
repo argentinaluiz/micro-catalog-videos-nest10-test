@@ -5,8 +5,10 @@ export const esMapping: MappingTypeMapping = {
     type: { type: 'keyword' },
     category_name: { type: 'keyword' },
     genre_name: { type: 'keyword' },
+    cast_member_name: { type: 'keyword' },
     description: { type: 'text' },
     is_active: { type: 'boolean' },
+    cast_member_type: { type: 'integer' },
     created_at: { type: 'date' },
     deleted_at: { type: 'date' },
     categories: {

@@ -1,73 +1,46 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
 import {
-  GenreSearchParams,
-  GenreSearchResult,
-  IGenreRepository,
-} from '../../../domain/genre.repository';
-import { Genre, GenreId } from '../../../domain/genre.aggregate';
+  CastMemberSearchParams,
+  CastMemberSearchResult,
+  ICastMemberRepository,
+} from '../../../domain/cast-member.repository';
+import {
+  CastMember,
+  CastMemberId,
+} from '../../../domain/cast-member.aggregate';
 import {
   GetGetResult,
   QueryDslQueryContainer,
   SearchTotalHits,
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
-import { CategoryId } from '../../../../category/domain/category.aggregate';
-import { NestedCategory } from '../../../../category/domain/nested-category.entity';
-import { Notification } from '../../../../shared/domain/validators/notification';
+import { CastMemberType } from '../../../domain/cast-member-type.vo';
 import { LoadEntityError } from '../../../../shared/domain/validators/validation.error';
 
-export const GENRE_DOCUMENT_TYPE_NAME = 'Genre';
+export const CAST_MEMBER_DOCUMENT_TYPE_NAME = 'CastMember';
 
-export type GenreDocument = {
-  genre_name: string;
-  categories: {
-    id: string;
-    name: string;
-    is_active: boolean;
-    deleted_at: Date | string | null;
-  }[];
-  is_active: boolean;
+export type CastMemberDocument = {
+  cast_member_name: string;
+  cast_member_type: number;
   created_at: Date | string;
   deleted_at: Date | string | null;
-  type: typeof GENRE_DOCUMENT_TYPE_NAME;
+  type: typeof CAST_MEMBER_DOCUMENT_TYPE_NAME;
 };
 
-export class GenreElasticSearchMapper {
-  static toEntity(id: string, document: GenreDocument): Genre {
-    if (document.type !== GENRE_DOCUMENT_TYPE_NAME) {
+export class CastMemberElasticSearchMapper {
+  static toEntity(id: string, document: CastMemberDocument): CastMember {
+    if (document.type !== CAST_MEMBER_DOCUMENT_TYPE_NAME) {
       throw new Error('Invalid document type');
     }
 
-    const nestedCategories = document.categories.map(
-      (category) =>
-        new NestedCategory({
-          category_id: new CategoryId(category.id),
-          name: category.name,
-          is_active: category.is_active,
-          deleted_at:
-            category.deleted_at === null
-              ? null
-              : !(category.deleted_at instanceof Date)
-                ? new Date(category.deleted_at)
-                : category.deleted_at,
-        }),
-    );
+    const [type, errorCastMemberType] = CastMemberType.create(
+      document.cast_member_type as any,
+    ).asArray();
 
-    const notification = new Notification();
-    if (!nestedCategories.length) {
-      notification.addError(
-        'categories_id should not be empty',
-        'categories_id',
-      );
-    }
-
-    const genre = new Genre({
-      genre_id: new GenreId(id),
-      name: document.genre_name,
-      categories: new Map(
-        nestedCategories.map((category) => [category.category_id.id, category]),
-      ),
-      is_active: document.is_active,
+    const castMember = new CastMember({
+      cast_member_id: new CastMemberId(id),
+      name: document.cast_member_name,
+      type,
       created_at: !(document.created_at instanceof Date)
         ? new Date(document.created_at)
         : document.created_at,
@@ -79,66 +52,65 @@ export class GenreElasticSearchMapper {
             : document.deleted_at,
     });
 
-    genre.validate();
+    castMember.validate();
 
-    notification.copyErrors(genre.notification);
+    const notification = castMember.notification;
+    if (errorCastMemberType) {
+      notification.setError(errorCastMemberType.message, 'type');
+    }
 
     if (notification.hasErrors()) {
       throw new LoadEntityError(notification.toJSON());
     }
 
-    return genre;
+    return castMember;
   }
 
-  static toDocument(entity: Genre): GenreDocument {
+  static toDocument(entity: CastMember): CastMemberDocument {
     return {
-      genre_name: entity.name,
-      categories: Array.from(entity.categories.values()).map((category) => ({
-        id: category.category_id.id,
-        name: category.name,
-        is_active: category.is_active,
-        deleted_at: category.deleted_at,
-      })),
-      is_active: entity.is_active,
+      cast_member_name: entity.name,
+      cast_member_type: entity.type.type,
       created_at: entity.created_at,
       deleted_at: entity.deleted_at,
-      type: GENRE_DOCUMENT_TYPE_NAME,
+      type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
     };
   }
 }
 
-export class GenreElasticSearchRepository implements IGenreRepository {
+export class CastMemberElasticSearchRepository
+  implements ICastMemberRepository
+{
   constructor(
     private readonly esClient: ElasticsearchService,
     private index: string,
   ) {}
   sortableFields: string[] = ['name', 'created_at'];
   sortableFieldsMap: { [key: string]: string } = {
-    name: 'genre_name',
+    name: 'cast_member_name',
     created_at: 'created_at',
   };
 
-  async insert(entity: Genre): Promise<void> {
+  async insert(entity: CastMember): Promise<void> {
     await this.esClient.index({
       index: this.index,
-      id: entity.genre_id.id,
-      document: GenreElasticSearchMapper.toDocument(entity),
+      id: entity.cast_member_id.id,
+      document: CastMemberElasticSearchMapper.toDocument(entity),
       refresh: true,
     });
   }
 
-  async bulkInsert(entities: Genre[]): Promise<void> {
+  async bulkInsert(entities: CastMember[]): Promise<void> {
     await this.esClient.bulk({
       index: this.index,
       body: entities.flatMap((entity) => [
-        { index: { _id: entity.genre_id.id } },
-        GenreElasticSearchMapper.toDocument(entity),
+        { index: { _id: entity.cast_member_id.id } },
+        CastMemberElasticSearchMapper.toDocument(entity),
       ]),
       refresh: true,
     });
   }
 
-  async findById(id: GenreId): Promise<Genre | null> {
+  async findById(id: CastMemberId): Promise<CastMember | null> {
     const result = await this.esClient.search({
       index: this.index,
       query: {
@@ -151,7 +123,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
             },
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -166,7 +138,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       },
     });
 
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
+    const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
 
     if (docs.length === 0) {
       return null;
@@ -178,18 +150,18 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       return null;
     }
 
-    return GenreElasticSearchMapper.toEntity(id.id, document);
+    return CastMemberElasticSearchMapper.toEntity(id.id, document);
   }
 
-  async findAll(): Promise<Genre[]> {
-    const result = await this.esClient.search<GenreDocument>({
+  async findAll(): Promise<CastMember[]> {
+    const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
       query: {
         bool: {
           must: [
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -204,14 +176,14 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       },
     });
     return result.hits.hits.map((hit) =>
-      GenreElasticSearchMapper.toEntity(hit._id, hit._source!),
+      CastMemberElasticSearchMapper.toEntity(hit._id, hit._source!),
     );
   }
 
   async findByIds(
-    ids: GenreId[],
-  ): Promise<{ exists: Genre[]; not_exists: GenreId[] }> {
-    const result = await this.esClient.search<GenreDocument>({
+    ids: CastMemberId[],
+  ): Promise<{ exists: CastMember[]; not_exists: CastMemberId[] }> {
+    const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
       query: {
         bool: {
@@ -223,7 +195,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
             },
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -238,19 +210,19 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       },
     });
 
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
+    const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
     return {
       exists: docs.map((doc) =>
-        GenreElasticSearchMapper.toEntity(doc._id, doc._source!),
+        CastMemberElasticSearchMapper.toEntity(doc._id, doc._source!),
       ),
       not_exists: ids.filter((id) => !docs.some((doc) => doc._id === id.id)),
     };
   }
 
   async existsById(
-    ids: GenreId[],
-  ): Promise<{ exists: GenreId[]; not_exists: GenreId[] }> {
-    const result = await this.esClient.search<GenreDocument>({
+    ids: CastMemberId[],
+  ): Promise<{ exists: CastMemberId[]; not_exists: CastMemberId[] }> {
+    const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
       query: {
         bool: {
@@ -262,7 +234,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
             },
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -278,18 +250,18 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       _source: false,
     });
 
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
-    const existsGenreIds = docs.map((m) => new GenreId(m._id));
-    const notExistsGenreIds = ids.filter(
-      (id) => !existsGenreIds.some((e) => e.equals(id)),
+    const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
+    const existsCastMemberIds = docs.map((m) => new CastMemberId(m._id));
+    const notExistsCastMemberIds = ids.filter(
+      (id) => !existsCastMemberIds.some((e) => e.equals(id)),
     );
     return {
-      exists: existsGenreIds,
-      not_exists: notExistsGenreIds,
+      exists: existsCastMemberIds,
+      not_exists: notExistsCastMemberIds,
     };
   }
 
-  async update(entity: Genre): Promise<void> {
+  async update(entity: CastMember): Promise<void> {
     const response = await this.esClient.updateByQuery({
       index: this.index,
       query: {
@@ -297,12 +269,12 @@ export class GenreElasticSearchRepository implements IGenreRepository {
           must: [
             {
               ids: {
-                values: entity.genre_id.id,
+                values: entity.cast_member_id.id,
               },
             },
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -317,23 +289,14 @@ export class GenreElasticSearchRepository implements IGenreRepository {
       },
       script: {
         source: `
-          ctx._source.genre_name = params.genre_name;
-          ctx._source.categories = params.categories;
-          ctx._source.is_active = params.is_active;
+          ctx._source.cast_member_name = params.cast_member_name;
+          ctx._source.cast_member_type = params.type;
           ctx._source.created_at = params.created_at;
           ctx._source.deleted_at = params.deleted_at;
         `,
         params: {
-          genre_name: entity.name,
-          categories: Array.from(entity.categories.values()).map(
-            (category) => ({
-              id: category.category_id.id,
-              name: category.name,
-              is_active: category.is_active,
-              deleted_at: category.deleted_at,
-            }),
-          ),
-          is_active: entity.is_active,
+          cast_member_name: entity.name,
+          type: entity.type.type,
           created_at: entity.created_at,
           deleted_at: entity.deleted_at,
         },
@@ -342,11 +305,11 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     });
 
     if (response.total !== 1) {
-      throw new NotFoundError(entity.genre_id.id, this.getEntity());
+      throw new NotFoundError(entity.cast_member_id.id, this.getEntity());
     }
   }
 
-  async delete(id: GenreId): Promise<void> {
+  async delete(id: CastMemberId): Promise<void> {
     const response = await this.esClient.deleteByQuery({
       index: this.index,
       query: {
@@ -359,7 +322,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
             },
             {
               match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
+                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
               },
             },
           ],
@@ -372,7 +335,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     }
   }
 
-  async search(props: GenreSearchParams): Promise<GenreSearchResult> {
+  async search(props: CastMemberSearchParams): Promise<CastMemberSearchResult> {
     const offset = (props.page - 1) * props.per_page;
     const limit = props.per_page;
 
@@ -381,7 +344,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         must: [
           {
             match: {
-              type: GENRE_DOCUMENT_TYPE_NAME,
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
             },
           },
         ],
@@ -400,7 +363,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         //@ts-expect-error - must is an array
         query.bool.must.push({
           wildcard: {
-            genre_name: {
+            cast_member_name: {
               value: `*${props.filter.name}*`,
               case_insensitive: true,
             },
@@ -408,16 +371,11 @@ export class GenreElasticSearchRepository implements IGenreRepository {
         });
       }
 
-      if (props.filter.categories_id) {
+      if (props.filter.type) {
         //@ts-expect-error - must is an array
         query.bool.must.push({
-          nested: {
-            path: 'categories',
-            query: {
-              terms: {
-                'categories.id': props.filter.categories_id,
-              },
-            },
+          match: {
+            cast_member_type: props.filter.type.type,
           },
         });
       }
@@ -433,12 +391,12 @@ export class GenreElasticSearchRepository implements IGenreRepository {
           : { created_at: 'desc' },
       query,
     });
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
+    const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
     const entities = docs.map((doc) =>
-      GenreElasticSearchMapper.toEntity(doc._id, doc._source!),
+      CastMemberElasticSearchMapper.toEntity(doc._id, doc._source!),
     );
     const total = result.hits.total as SearchTotalHits;
-    return new GenreSearchResult({
+    return new CastMemberSearchResult({
       total: total.value,
       current_page: props.page,
       per_page: props.per_page,
@@ -446,7 +404,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     });
   }
 
-  getEntity(): new (...args: any[]) => Genre {
-    return Genre;
+  getEntity(): new (...args: any[]) => CastMember {
+    return CastMember;
   }
 }

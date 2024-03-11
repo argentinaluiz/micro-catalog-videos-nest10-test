@@ -11,7 +11,7 @@ import {
   SearchTotalHits,
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
-import { Either } from '../../../../shared/domain/either';
+import { LoadEntityError } from '../../../../shared/domain/validators/validation.error';
 
 export const CATEGORY_DOCUMENT_TYPE_NAME = 'Category';
 
@@ -30,7 +30,7 @@ export class CategoryElasticSearchMapper {
       throw new Error('Invalid document type');
     }
 
-    return new Category({
+    const category = new Category({
       category_id: new CategoryId(id),
       name: document.category_name,
       description: document.description,
@@ -45,6 +45,12 @@ export class CategoryElasticSearchMapper {
             ? new Date(document.deleted_at!)
             : document.deleted_at,
     });
+
+    category.validate();
+    if (category.notification.hasErrors()) {
+      throw new LoadEntityError(category.notification.toJSON());
+    }
+    return category;
   }
 
   static toDocument(entity: Category): CategoryDocument {

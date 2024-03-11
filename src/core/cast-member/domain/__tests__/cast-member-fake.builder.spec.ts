@@ -36,15 +36,15 @@ describe('CastMemberFakerBuilder Unit Tests', () => {
       faker.build();
       expect(mockFactory).toHaveBeenCalledTimes(1);
 
-      const categoryId = new CastMemberId();
-      mockFactory = jest.fn(() => categoryId);
+      const castMemberId = new CastMemberId();
+      mockFactory = jest.fn(() => castMemberId);
       const fakerMany = CastMemberFakeBuilder.theCastMembers(2);
       fakerMany.withCastMemberId(mockFactory);
       fakerMany.build();
 
       expect(mockFactory).toHaveBeenCalledTimes(2);
-      expect(fakerMany.build()[0].cast_member_id).toBe(categoryId);
-      expect(fakerMany.build()[1].cast_member_id).toBe(categoryId);
+      expect(fakerMany.build()[0].cast_member_id).toBe(castMemberId);
+      expect(fakerMany.build()[1].cast_member_id).toBe(castMemberId);
     });
   });
 
@@ -77,8 +77,8 @@ describe('CastMemberFakerBuilder Unit Tests', () => {
 
     test('should pass index to name factory', () => {
       faker.withName((index) => `test name ${index}`);
-      const category = faker.build();
-      expect(category.name).toBe(`test name 0`);
+      const castMember = faker.build();
+      expect(castMember.name).toBe(`test name 0`);
 
       const fakerMany = CastMemberFakeBuilder.theCastMembers(2);
       fakerMany.withName((index) => `test name ${index}`);
@@ -147,8 +147,8 @@ describe('CastMemberFakerBuilder Unit Tests', () => {
     test('should pass index to created_at factory', () => {
       const date = new Date();
       faker.withCreatedAt((index) => new Date(date.getTime() + index + 2));
-      const category = faker.build();
-      expect(category.created_at.getTime()).toBe(date.getTime() + 2);
+      const castMember = faker.build();
+      expect(castMember.created_at.getTime()).toBe(date.getTime() + 2);
 
       const fakerMany = CastMemberFakeBuilder.theCastMembers(2);
       fakerMany.withCreatedAt((index) => new Date(date.getTime() + index + 2));
@@ -235,7 +235,7 @@ describe('CastMemberFakerBuilder Unit Tests', () => {
     });
   });
 
-  test('should create a category and nested', () => {
+  test('should create a cast member and nested', () => {
     const faker = CastMemberFakeBuilder.anActorAndNested();
     const [castMember, nested] = faker.build();
 

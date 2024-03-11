@@ -579,4 +579,97 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
       }
     });
   });
+
+  describe('should search using filter by name and categories_id, sort and paginate', () => {
+    const nestedCategories = Category.fake().theNestedCategories(4).build();
+
+    const genres = [
+      Genre.fake()
+        .aGenre()
+        .addNestedCategory(nestedCategories[0])
+        .addNestedCategory(nestedCategories[1])
+        .withName('test')
+        .build(),
+      Genre.fake()
+        .aGenre()
+        .addNestedCategory(nestedCategories[0])
+        .addNestedCategory(nestedCategories[1])
+        .withName('a')
+        .build(),
+      Genre.fake()
+        .aGenre()
+        .addNestedCategory(nestedCategories[0])
+        .addNestedCategory(nestedCategories[1])
+        .addNestedCategory(nestedCategories[2])
+        .withName('TEST')
+        .build(),
+      Genre.fake()
+        .aGenre()
+        .addNestedCategory(nestedCategories[3])
+        .withName('e')
+        .build(),
+      Genre.fake()
+        .aGenre()
+        .addNestedCategory(nestedCategories[1])
+        .addNestedCategory(nestedCategories[2])
+        .withName('TeSt')
+        .build(),
+    ];
+
+    const arrange = [
+      {
+        search_params: GenreSearchParams.create({
+          page: 1,
+          per_page: 2,
+          sort: 'name',
+          filter: {
+            name: 'TEST',
+            categories_id: [nestedCategories[1].category_id],
+          },
+        }),
+        search_result: new GenreSearchResult({
+          items: [genres[2], genres[4]],
+          total: 3,
+          current_page: 1,
+          per_page: 2,
+        }),
+      },
+      {
+        search_params: GenreSearchParams.create({
+          page: 2,
+          per_page: 2,
+          sort: 'name',
+          filter: {
+            name: 'TEST',
+            categories_id: [nestedCategories[1].category_id],
+          },
+        }),
+        search_result: new GenreSearchResult({
+          items: [genres[0]],
+          total: 3,
+          current_page: 2,
+          per_page: 2,
+        }),
+      },
+    ];
+
+    beforeEach(async () => {
+      await repository.bulkInsert(genres);
+    });
+
+    test.each(arrange)(
+      'when value is $search_params',
+      async ({ search_params, search_result: expected_result }) => {
+        const result = await repository.search(search_params);
+        const expected = expected_result.toJSON(true);
+        expect(result.toJSON(true)).toMatchObject({
+          ...expected,
+          items: expected.items.map((i) => ({
+            ...i,
+            categories: expect.arrayContaining(i.categories),
+          })),
+        });
+      },
+    );
+  });
 });
