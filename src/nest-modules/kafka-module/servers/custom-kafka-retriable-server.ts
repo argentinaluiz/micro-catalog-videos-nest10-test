@@ -44,14 +44,12 @@ export class CustomKafkaRetriableServer extends CustomKafkaServer {
     });
 
     this.asyncRetryHelper.on('retry', ({ error, topic }) => {
-      console.log('error', JSON.stringify(error));
       this.logger.error(
         `Retrying message from topic ${topic} due to error: ${(error as any).message}`,
       );
     });
 
     this.asyncRetryHelper.on('dead-letter', ({ error, topic }) => {
-      console.log(error);
       this.logger.error(
         `Sending message from topic ${topic} to dead-letter topic due to error: ${(error as any).message}`,
       );
