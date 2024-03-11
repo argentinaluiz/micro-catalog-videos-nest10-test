@@ -20,6 +20,7 @@ export class GenreFakeBuilder<TBuild = any> {
   private _deleted_at: PropOrFactory<Date | null> = (_index) => null;
 
   private countObjs;
+  private chance: Chance.Chance;
 
   static aGenre() {
     return new GenreFakeBuilder<Genre>();
@@ -29,7 +30,6 @@ export class GenreFakeBuilder<TBuild = any> {
     return new GenreFakeBuilder<Genre[]>(countObjs);
   }
 
-  private chance: Chance.Chance;
 
   private constructor(countObjs: number = 1) {
     this.countObjs = countObjs;

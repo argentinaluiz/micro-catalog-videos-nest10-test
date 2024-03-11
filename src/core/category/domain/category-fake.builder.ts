@@ -28,6 +28,7 @@ export class CategoryFakeBuilder<TBuild = any> {
 
   private countObjs;
   private mode: CategoryFakeMode;
+  private chance: Chance.Chance;
 
   static aCategory() {
     return new CategoryFakeBuilder<Category>();
@@ -65,14 +66,13 @@ export class CategoryFakeBuilder<TBuild = any> {
     );
   }
 
-  private chance: Chance.Chance;
 
   private constructor(
     countObjs: number = 1,
-    howNestedManage = CategoryFakeMode.ONLY_AGGREGATE,
+    mode = CategoryFakeMode.ONLY_AGGREGATE,
   ) {
     this.countObjs = countObjs;
-    this.mode = howNestedManage;
+    this.mode = mode;
     this.chance = Chance();
   }
 
@@ -165,7 +165,7 @@ export class CategoryFakeBuilder<TBuild = any> {
             is_active: category.is_active,
             deleted_at: category.deleted_at,
           });
-
+          nested.validate();
           return [category, nested];
         }
       });
