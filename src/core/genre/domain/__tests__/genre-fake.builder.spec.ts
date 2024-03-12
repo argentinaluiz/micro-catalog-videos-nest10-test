@@ -279,4 +279,48 @@ describe('GenreFakerBuilder Unit Tests', () => {
       expect(genre.created_at).toEqual(created_at);
     });
   });
+
+  test('should create a genre and nested', () => {
+    const faker = GenreFakeBuilder.aGenreAndNested();
+    const [genre, nestedGenre] = faker.build();
+
+    expect(genre.genre_id).toBeInstanceOf(GenreId);
+    expect(genre.name).toBe(nestedGenre.name);
+    expect(genre.categories).toBeInstanceOf(Map);
+    expect(genre.categories.size).toBe(1);
+    expect(genre.categories.values().next().value).toBeInstanceOf(
+      NestedCategory,
+    );
+    expect(genre.is_active).toBeTruthy();
+    expect(genre.created_at).toBeInstanceOf(Date);
+    expect(genre.deleted_at).toBeNull();
+
+    expect(nestedGenre.genre_id).toBe(genre.genre_id);
+    expect(nestedGenre.name).toBe(genre.name);
+    expect(nestedGenre.is_active).toBeTruthy();
+    expect(nestedGenre.deleted_at).toBeNull();
+  });
+
+  test('should create many genres and nested', () => {
+    const faker = GenreFakeBuilder.theGenresAndNested(2);
+    const genres = faker.build();
+
+    genres.forEach(([genre, nestedGenre]) => {
+      expect(genre.genre_id).toBeInstanceOf(GenreId);
+      expect(genre.name).toBe(nestedGenre.name);
+      expect(genre.categories).toBeInstanceOf(Map);
+      expect(genre.categories.size).toBe(1);
+      expect(genre.categories.values().next().value).toBeInstanceOf(
+        NestedCategory,
+      );
+      expect(genre.is_active).toBeTruthy();
+      expect(genre.created_at).toBeInstanceOf(Date);
+      expect(genre.deleted_at).toBeNull();
+
+      expect(nestedGenre.genre_id).toBe(genre.genre_id);
+      expect(nestedGenre.name).toBe(genre.name);
+      expect(nestedGenre.is_active).toBeTruthy();
+      expect(nestedGenre.deleted_at).toBeNull();
+    });
+  });
 });

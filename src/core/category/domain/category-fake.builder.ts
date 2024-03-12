@@ -30,6 +30,15 @@ export class CategoryFakeBuilder<TBuild = any> {
   private mode: CategoryFakeMode;
   private chance: Chance.Chance;
 
+  private constructor(
+    countObjs: number = 1,
+    mode = CategoryFakeMode.ONLY_AGGREGATE,
+  ) {
+    this.countObjs = countObjs;
+    this.mode = mode;
+    this.chance = Chance();
+  }
+
   static aCategory() {
     return new CategoryFakeBuilder<Category>();
   }
@@ -64,16 +73,6 @@ export class CategoryFakeBuilder<TBuild = any> {
       countObjs,
       CategoryFakeMode.ONLY_NESTED,
     );
-  }
-
-
-  private constructor(
-    countObjs: number = 1,
-    mode = CategoryFakeMode.ONLY_AGGREGATE,
-  ) {
-    this.countObjs = countObjs;
-    this.mode = mode;
-    this.chance = Chance();
   }
 
   withCategoryId(valueOrFactory: PropOrFactory<CategoryId>) {

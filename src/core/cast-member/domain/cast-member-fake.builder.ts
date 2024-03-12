@@ -29,6 +29,15 @@ export class CastMemberFakeBuilder<TBuild = any> {
   private mode: CastMemberFakeMode;
   private chance: Chance.Chance;
 
+  private constructor(
+    countObjs: number = 1,
+    mode = CastMemberFakeMode.ONLY_AGGREGATE,
+  ) {
+    this.countObjs = countObjs;
+    this.mode = mode;
+    this.chance = Chance();
+  }
+
   static aDirector() {
     return new CastMemberFakeBuilder<CastMember>().withType(
       CastMemberType.createADirector(),
@@ -90,15 +99,6 @@ export class CastMemberFakeBuilder<TBuild = any> {
       countObjs,
       CastMemberFakeMode.BOTH,
     );
-  }
-
-  private constructor(
-    countObjs: number = 1,
-    mode = CastMemberFakeMode.ONLY_AGGREGATE,
-  ) {
-    this.countObjs = countObjs;
-    this.mode = mode;
-    this.chance = Chance();
   }
 
   withCastMemberId(valueOrFactory: PropOrFactory<CastMemberId>) {

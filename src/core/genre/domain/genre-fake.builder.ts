@@ -2,8 +2,15 @@ import { Chance } from 'chance';
 import { Genre, GenreId } from './genre.aggregate';
 import { Category } from '../../category/domain/category.aggregate';
 import { NestedCategory } from '../../category/domain/nested-category.entity';
+import { NestedGenre } from './nested-genre.entity';
 
 type PropOrFactory<T> = T | ((index: number) => T);
+
+export enum GenreFakeMode {
+  ONLY_AGGREGATE = 'ONLY_AGGREGATE',
+  ONLY_NESTED = 'ONLY_NESTED',
+  BOTH = 'BOTH',
+}
 
 export class GenreFakeBuilder<TBuild = any> {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -20,20 +27,46 @@ export class GenreFakeBuilder<TBuild = any> {
   private _deleted_at: PropOrFactory<Date | null> = (_index) => null;
 
   private countObjs;
+  private mode: GenreFakeMode;
   private chance: Chance.Chance;
+
+  private constructor(
+    countObjs: number = 1,
+    mode = GenreFakeMode.ONLY_AGGREGATE,
+  ) {
+    this.countObjs = countObjs;
+    this.mode = mode;
+    this.chance = Chance();
+  }
 
   static aGenre() {
     return new GenreFakeBuilder<Genre>();
+  }
+
+  static aGenreAndNested() {
+    return new GenreFakeBuilder<[Genre, NestedGenre]>(1, GenreFakeMode.BOTH);
   }
 
   static theGenres(countObjs: number) {
     return new GenreFakeBuilder<Genre[]>(countObjs);
   }
 
+  static theGenresAndNested(countObjs: number) {
+    return new GenreFakeBuilder<[Genre, NestedGenre][]>(
+      countObjs,
+      GenreFakeMode.BOTH,
+    );
+  }
 
-  private constructor(countObjs: number = 1) {
-    this.countObjs = countObjs;
-    this.chance = Chance();
+  static aNestedGenre() {
+    return new GenreFakeBuilder<NestedGenre>(1, GenreFakeMode.ONLY_NESTED);
+  }
+
+  static theNestedGenres(countObjs: number) {
+    return new GenreFakeBuilder<NestedGenre[]>(
+      countObjs,
+      GenreFakeMode.ONLY_NESTED,
+    );
   }
 
   withGenreId(valueOrFactory: PropOrFactory<GenreId>) {
@@ -83,23 +116,60 @@ export class GenreFakeBuilder<TBuild = any> {
 
   build(): TBuild {
     const genres = new Array(this.countObjs).fill(undefined).map((_, index) => {
+      if (this.mode === GenreFakeMode.ONLY_NESTED) {
+        const nestedGenre = new NestedGenre({
+          genre_id: this.callFactory(this._genre_id, index),
+          name: this.callFactory(this._name, index),
+          is_active: this.callFactory(this._is_active, index),
+          deleted_at: this.callFactory(this._deleted_at, index),
+        });
+        nestedGenre.validate();
+        return nestedGenre;
+      }
+
       const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
       const nestedCategories = this._categories.length
         ? this.callFactory(this._categories, index)
         : [nestedCategory];
 
-      const genre = new Genre({
-        genre_id: this.callFactory(this._genre_id, index),
-        name: this.callFactory(this._name, index),
-        categories: new Map(
-          nestedCategories.map((nested) => [nested.category_id.id, nested]),
-        ),
-        is_active: this.callFactory(this._is_active, index),
-        created_at: this.callFactory(this._created_at, index),
-        deleted_at: this.callFactory(this._deleted_at, index),
-      });
-      genre.validate();
-      return genre;
+      if (this.mode === GenreFakeMode.ONLY_AGGREGATE) {
+        const genre = new Genre({
+          genre_id: this.callFactory(this._genre_id, index),
+          name: this.callFactory(this._name, index),
+          categories: new Map(
+            nestedCategories.map((nested) => [nested.category_id.id, nested]),
+          ),
+          is_active: this.callFactory(this._is_active, index),
+          created_at: this.callFactory(this._created_at, index),
+          deleted_at: this.callFactory(this._deleted_at, index),
+        });
+        genre.validate();
+        return genre;
+      }
+
+      if (this.mode === GenreFakeMode.BOTH) {
+        const genre = new Genre({
+          genre_id: this.callFactory(this._genre_id, index),
+          name: this.callFactory(this._name, index),
+          categories: new Map(
+            nestedCategories.map((nested) => [nested.category_id.id, nested]),
+          ),
+          is_active: this.callFactory(this._is_active, index),
+          created_at: this.callFactory(this._created_at, index),
+          deleted_at: this.callFactory(this._deleted_at, index),
+        });
+        genre.validate();
+
+        const nestedGenre = new NestedGenre({
+          genre_id: genre.genre_id,
+          name: genre.name,
+          is_active: genre.is_active,
+          deleted_at: genre.deleted_at,
+        });
+        nestedGenre.validate();
+
+        return [genre, nestedGenre];
+      }
     });
     return this.countObjs === 1 ? (genres[0] as any) : genres;
   }
