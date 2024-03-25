@@ -58,13 +58,7 @@ export class SaveGenreUseCase
     );
     genre.syncNestedCategories(nestedCategoriesProps);
 
-    if (input.is_active === true) {
-      genre.activate();
-    }
-
-    if (input.is_active === false) {
-      genre.deactivate();
-    }
+    input.is_active === true ? genre.activate() : genre.deactivate();
 
     genre.changeCreatedAt(input.created_at);
 

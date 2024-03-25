@@ -8,8 +8,14 @@ import {
 } from '../../category/domain/nested-category.entity';
 import { CategoryId } from '../../category/domain/category.aggregate';
 import { Rating } from './rating.vo';
-import { NestedGenre } from '../../genre/domain/nested-genre.entity';
-import { NestedCastMember } from '../../cast-member/domain/nested-cast-member.entity';
+import {
+  NestedGenre,
+  NestedGenreConstructorProps,
+} from '../../genre/domain/nested-genre.entity';
+import {
+  NestedCastMember,
+  NestedCastMemberConstructorProps,
+} from '../../cast-member/domain/nested-cast-member.entity';
 
 export type VideoConstructorProps = {
   video_id: VideoId;
@@ -49,8 +55,8 @@ export type VideoCreateCommand = {
   trailer_url: string;
   video_url: string;
   categories_props: NestedCategoryConstructorProps[];
-  genres_props: NestedGenre[];
-  cast_members_props: NestedCastMember[];
+  genres_props: NestedGenreConstructorProps[];
+  cast_members_props: NestedCastMemberConstructorProps[];
   created_at: Date;
 };
 
@@ -235,6 +241,32 @@ export class Video extends AggregateRoot {
       categoriesProps.map((categoryProps) => [
         categoryProps.category_id.id,
         NestedCategory.create(categoryProps),
+      ]),
+    );
+  }
+
+  syncNestedGenres(genresProps: NestedGenreConstructorProps[]) {
+    if (!genresProps.length) {
+      throw new Error('Genres id is empty');
+    }
+
+    this.genres = new Map(
+      genresProps.map((genreProps) => [
+        genreProps.genre_id.id,
+        NestedGenre.create(genreProps),
+      ]),
+    );
+  }
+
+  syncNestedCastMembers(castMembersProps: NestedCastMemberConstructorProps[]) {
+    if (!castMembersProps.length) {
+      throw new Error('Cast Members id is empty');
+    }
+
+    this.cast_members = new Map(
+      castMembersProps.map((castMemberProps) => [
+        castMemberProps.cast_member_id.id,
+        NestedCastMember.create(castMemberProps),
       ]),
     );
   }

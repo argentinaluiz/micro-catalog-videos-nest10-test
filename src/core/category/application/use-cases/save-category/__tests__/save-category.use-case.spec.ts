@@ -12,7 +12,7 @@ describe('SaveCategoryUseCase Unit Tests', () => {
     useCase = new SaveCategoryUseCase(repository);
   });
 
-  it('should call createCategory method when category_id is not provided', async () => {
+  it('should call createCategory method when category not exists in database', async () => {
     useCase['createCategory'] = jest.fn();
     const input = new SaveCategoryInput({
       category_id: new CategoryId().id,
@@ -26,7 +26,7 @@ describe('SaveCategoryUseCase Unit Tests', () => {
     expect(useCase['createCategory']).toHaveBeenCalledWith(input);
   });
 
-  it('should call updateCategory method when category_id is provided', async () => {
+  it('should call updateCategory method when category exists in database', async () => {
     useCase['updateCategory'] = jest.fn();
     const category = Category.fake().aCategory().build();
     repository.insert(category);

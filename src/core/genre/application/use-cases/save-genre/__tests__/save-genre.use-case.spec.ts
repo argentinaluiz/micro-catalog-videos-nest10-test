@@ -1,4 +1,7 @@
-import { Category } from '../../../../../category/domain/category.aggregate';
+import {
+  Category,
+  CategoryId,
+} from '../../../../../category/domain/category.aggregate';
 import { CategoryInMemoryRepository } from '../../../../../category/infra/db/in-memory/category-in-memory.repository';
 import { EntityValidationError } from '../../../../../shared/domain/validators/validation.error';
 import { Genre, GenreId } from '../../../../domain/genre.aggregate';
@@ -17,14 +20,12 @@ describe('SaveGenreUseCase Unit Tests', () => {
     useCase = new SaveGenreUseCase(genreRepo, categoryRepo);
   });
 
-  it('should call createGenre method when genre_id is not provided', async () => {
-    const category = Category.fake().aCategory().build();
-    await categoryRepo.insert(category);
+  it('should call createGenre method when genre not exists in database', async () => {
     useCase['createGenre'] = jest.fn();
     const input = new SaveGenreInput({
       genre_id: new GenreId().id,
       name: 'test',
-      categories_id: [category.category_id.id],
+      categories_id: [new CategoryId().id],
       is_active: false,
       created_at: new Date(),
     });
@@ -33,16 +34,14 @@ describe('SaveGenreUseCase Unit Tests', () => {
     expect(useCase['createGenre']).toHaveBeenCalledWith(input);
   });
 
-  it('should call updateGenre method when genre_id is provided', async () => {
-    const category = Category.fake().aCategory().build();
-    await categoryRepo.insert(category);
+  it('should call updateGenre method when genre exists in database', async () => {
     useCase['updateGenre'] = jest.fn();
     const genre = Genre.fake().aGenre().build();
     genreRepo.insert(genre);
     const input = new SaveGenreInput({
       genre_id: genre.genre_id.id,
       name: 'test',
-      categories_id: [category.category_id.id],
+      categories_id: [new CategoryId().id],
       is_active: false,
       created_at: new Date(),
     });
@@ -86,13 +85,11 @@ describe('SaveGenreUseCase Unit Tests', () => {
 
   describe('execute createGenre method', () => {
     it('should throw an error when entity is not valid', async () => {
-      const category = Category.fake().aCategory().build();
-      await categoryRepo.insert(category);
       const spyCreateGenre = jest.spyOn(useCase, 'createGenre' as any);
       const input = new SaveGenreInput({
         genre_id: new GenreId().id,
         name: 't'.repeat(256),
-        categories_id: [category.category_id.id],
+        categories_id: [new CategoryId().id],
         is_active: false,
         created_at: new Date(),
       });
@@ -125,14 +122,12 @@ describe('SaveGenreUseCase Unit Tests', () => {
 
   describe('execute calling updateGenre method', () => {
     it('should throw an error when entity is not valid', async () => {
-      const category = Category.fake().aCategory().build();
-      await categoryRepo.insert(category);
       const genre = Genre.fake().aGenre().build();
       genreRepo.items.push(genre);
       const input = new SaveGenreInput({
         genre_id: genre.genre_id.id,
         name: 't'.repeat(256),
-        categories_id: [category.category_id.id],
+        categories_id: [new CategoryId().id],
         is_active: false,
         created_at: new Date(),
       });

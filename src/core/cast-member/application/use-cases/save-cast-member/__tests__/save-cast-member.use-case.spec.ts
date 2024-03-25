@@ -16,7 +16,7 @@ describe('SaveCastMemberUseCase Unit Tests', () => {
     useCase = new SaveCastMemberUseCase(repository);
   });
 
-  it('should call createCastMember method when cast_member_id is not provided', async () => {
+  it('should call createCastMember method when cast member not exists in database', async () => {
     useCase['createCastMember'] = jest.fn();
     const input = new SaveCastMemberInput({
       cast_member_id: new CastMemberId().id,
@@ -29,7 +29,7 @@ describe('SaveCastMemberUseCase Unit Tests', () => {
     expect(useCase['createCastMember']).toHaveBeenCalledWith(input);
   });
 
-  it('should call updateCastMember method when cast_member_id is provided', async () => {
+  it('should call updateCastMember method when cast member exists in database', async () => {
     useCase['updateCastMember'] = jest.fn();
     const castMember = CastMember.fake().anActor().build();
     repository.insert(castMember);
