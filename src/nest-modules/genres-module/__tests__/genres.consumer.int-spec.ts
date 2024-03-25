@@ -85,7 +85,7 @@ describe('GenresConsumer Integration Tests', () => {
           ],
         }),
         KafkaModule,
-        GenresModule,
+        GenresModule.forRoot(),
         ElasticSearchModule,
       ],
     }).compile();
