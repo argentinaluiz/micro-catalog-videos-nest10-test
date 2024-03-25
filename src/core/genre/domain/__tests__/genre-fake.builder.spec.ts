@@ -102,12 +102,12 @@ describe('GenreFakerBuilder Unit Tests', () => {
     });
 
     test('addNestedCategory', () => {
-      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const nestedCategory = Category.fake().aNestedCategory().build();
       const $this = faker.addNestedCategory(nestedCategory);
       expect($this).toBeInstanceOf(GenreFakeBuilder);
       expect(faker['_categories']).toStrictEqual([nestedCategory]);
 
-      const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
+      const nestedCategory2 = Category.fake().aNestedCategory().build();
       faker.addNestedCategory(() => nestedCategory2);
 
       expect([
@@ -119,8 +119,8 @@ describe('GenreFakerBuilder Unit Tests', () => {
 
     it('should pass index to categories factory', () => {
       const nestedCategories = [
-        Category.fake().aCategoryAndNested().build()[1],
-        Category.fake().aCategoryAndNested().build()[1],
+        Category.fake().aNestedCategory().build(),
+        Category.fake().aNestedCategory().build(),
       ];
       faker.addNestedCategory((index) => nestedCategories[index]);
       const genre = faker.build();
@@ -214,8 +214,8 @@ describe('GenreFakerBuilder Unit Tests', () => {
 
     const created_at = new Date();
     const genreId = new GenreId();
-    const nestedCategory1 = Category.fake().aCategoryAndNested().build()[1];
-    const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
+    const nestedCategory1 = Category.fake().aNestedCategory().build();
+    const nestedCategory2 = Category.fake().aNestedCategory().build();
     faker = GenreFakeBuilder.aGenre();
     genre = faker
       .withGenreId(genreId)
@@ -238,7 +238,7 @@ describe('GenreFakerBuilder Unit Tests', () => {
     expect(genre.created_at).toEqual(created_at);
   });
 
-  it('should create many categories', () => {
+  it('should create many genres', () => {
     const faker = GenreFakeBuilder.theGenres(2);
     let genres = faker.build();
     genres.forEach((genre) => {
@@ -254,8 +254,8 @@ describe('GenreFakerBuilder Unit Tests', () => {
 
     const created_at = new Date();
     const genreId = new GenreId();
-    const nestedCategory1 = Category.fake().aCategoryAndNested().build()[1];
-    const nestedCategory2 = Category.fake().aCategoryAndNested().build()[1];
+    const nestedCategory1 = Category.fake().aNestedCategory().build();
+    const nestedCategory2 = Category.fake().aNestedCategory().build();
     genres = faker
       .withGenreId(genreId)
       .withName('name test')

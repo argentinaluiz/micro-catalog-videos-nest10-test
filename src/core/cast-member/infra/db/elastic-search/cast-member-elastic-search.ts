@@ -295,10 +295,7 @@ export class CastMemberElasticSearchRepository
           ctx._source.deleted_at = params.deleted_at;
         `,
         params: {
-          cast_member_name: entity.name,
-          type: entity.type.type,
-          created_at: entity.created_at,
-          deleted_at: entity.deleted_at,
+          ...CastMemberElasticSearchMapper.toDocument(entity),
         },
       },
       refresh: true,

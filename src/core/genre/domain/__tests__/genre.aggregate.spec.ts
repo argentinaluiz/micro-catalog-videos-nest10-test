@@ -1,7 +1,4 @@
-import {
-  Category,
-  CategoryId,
-} from '../../../category/domain/category.aggregate';
+import { Category } from '../../../category/domain/category.aggregate';
 import { Genre, GenreId } from '../genre.aggregate';
 
 describe('Genre Without Validator Unit Tests', () => {
@@ -13,7 +10,7 @@ describe('Genre Without Validator Unit Tests', () => {
   test('constructor of genre', () => {
     const genre_id = new GenreId();
     const name = 'Movie';
-    const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+    const nestedCategory = Category.fake().aNestedCategory().build();
     const is_active = true;
     const created_at = new Date();
     const genre = new Genre({
@@ -36,7 +33,7 @@ describe('Genre Without Validator Unit Tests', () => {
     test('should create a genre', () => {
       const genre_id = new GenreId();
       const name = 'Movie';
-      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const nestedCategory = Category.fake().aNestedCategory().build();
       const categoriesId = new Map([
         [nestedCategory.category_id.id, nestedCategory],
       ]);
@@ -62,7 +59,7 @@ describe('Genre Without Validator Unit Tests', () => {
     const genre = Genre.create({
       genre_id: new GenreId(),
       name: 'Movie',
-      categories_props: [Category.fake().aCategoryAndNested().build()[1]],
+      categories_props: [Category.fake().aNestedCategory().build()],
       is_active: true,
       created_at: new Date(),
     });
@@ -107,7 +104,7 @@ describe('Genre Validator', () => {
     test('should an invalid genre with name property', () => {
       const genre = Genre.create({
         name: 't'.repeat(256),
-        categories_props: [Category.fake().aCategoryAndNested().build()[1]],
+        categories_props: [Category.fake().aNestedCategory().build()],
       } as any);
       expect(genre.notification.hasErrors()).toBe(true);
       expect(genre.notification).notificationContainsErrorMessages([

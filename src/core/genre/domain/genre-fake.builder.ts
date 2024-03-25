@@ -127,7 +127,7 @@ export class GenreFakeBuilder<TBuild = any> {
         return nestedGenre;
       }
 
-      const nestedCategory = Category.fake().aCategoryAndNested().build()[1];
+      const nestedCategory = Category.fake().aNestedCategory().build();
       const nestedCategories = this._categories.length
         ? this.callFactory(this._categories, index)
         : [nestedCategory];
@@ -197,6 +197,10 @@ export class GenreFakeBuilder<TBuild = any> {
 
   get created_at() {
     return this.getValue('created_at');
+  }
+
+  get deleted_at() {
+    return this.getValue('deleted_at');
   }
 
   private getValue(prop: any) {

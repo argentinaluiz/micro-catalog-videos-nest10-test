@@ -61,6 +61,24 @@ export function setupElasticSearch(
       index: _indexName,
       body: {
         mappings: esMapping,
+        settings: {
+          analysis: {
+            analyzer: {
+              ngram_analyzer: {
+                type: 'custom',
+                tokenizer: 'standard',
+                filter: ['lowercase', 'ngram_filter', 'asciifolding'],
+              },
+            },
+            filter: {
+              ngram_filter: {
+                type: 'ngram',
+                min_gram: 3,
+                max_gram: 4,
+              },
+            },
+          },
+        },
       },
     });
   });

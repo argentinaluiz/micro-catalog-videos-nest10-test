@@ -44,6 +44,13 @@ export class CastMemberFakeBuilder<TBuild = any> {
     );
   }
 
+  static aNestedDirector() {
+    return new CastMemberFakeBuilder<NestedCastMember>(
+      1,
+      CastMemberFakeMode.ONLY_NESTED,
+    ).withType(CastMemberType.createADirector());
+  }
+
   static aDirectorAndNested() {
     return new CastMemberFakeBuilder<[CastMember, NestedCastMember]>(
       1,
@@ -55,6 +62,13 @@ export class CastMemberFakeBuilder<TBuild = any> {
     return new CastMemberFakeBuilder<CastMember>().withType(
       CastMemberType.createAnActor(),
     );
+  }
+
+  static aNestedActor() {
+    return new CastMemberFakeBuilder<NestedCastMember>(
+      1,
+      CastMemberFakeMode.ONLY_NESTED,
+    ).withType(CastMemberType.createAnActor());
   }
 
   static anActorAndNested() {
@@ -77,6 +91,13 @@ export class CastMemberFakeBuilder<TBuild = any> {
     );
   }
 
+  static theNestedActors(countObjs: number) {
+    return new CastMemberFakeBuilder<NestedCastMember[]>(
+      countObjs,
+      CastMemberFakeMode.ONLY_NESTED,
+    ).withType(CastMemberType.createAnActor());
+  }
+
   static theDirectors(countObjs: number) {
     return new CastMemberFakeBuilder<CastMember[]>(countObjs).withType(
       CastMemberType.createADirector(),
@@ -88,6 +109,13 @@ export class CastMemberFakeBuilder<TBuild = any> {
       countObjs,
       CastMemberFakeMode.BOTH,
     );
+  }
+
+  static theNestedDirectors(countObjs: number) {
+    return new CastMemberFakeBuilder<NestedCastMember[]>(
+      countObjs,
+      CastMemberFakeMode.ONLY_NESTED,
+    ).withType(CastMemberType.createADirector());
   }
 
   static theCastMembers(countObjs: number) {

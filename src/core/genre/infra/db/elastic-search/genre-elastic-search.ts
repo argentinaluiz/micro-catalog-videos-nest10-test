@@ -55,10 +55,7 @@ export class GenreElasticSearchMapper {
 
     const notification = new Notification();
     if (!nestedCategories.length) {
-      notification.addError(
-        'categories_id should not be empty',
-        'categories_id',
-      );
+      notification.addError('categories should not be empty', 'categories');
     }
 
     const genre = new Genre({
@@ -324,18 +321,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
           ctx._source.deleted_at = params.deleted_at;
         `,
         params: {
-          genre_name: entity.name,
-          categories: Array.from(entity.categories.values()).map(
-            (category) => ({
-              id: category.category_id.id,
-              name: category.name,
-              is_active: category.is_active,
-              deleted_at: category.deleted_at,
-            }),
-          ),
-          is_active: entity.is_active,
-          created_at: entity.created_at,
-          deleted_at: entity.deleted_at,
+          ...GenreElasticSearchMapper.toDocument(entity),
         },
       },
       refresh: true,
