@@ -13,8 +13,11 @@ export class GetCategoryUseCase
   constructor(private categoryRepo: ICategoryRepository) {}
 
   async execute(input: GetCategoryInput): Promise<GetCategoryOutput> {
-    const categorId = new CategoryId(input.id);
-    const category = await this.categoryRepo.findById(categorId);
+    const categoryId = new CategoryId(input.id);
+    const category = await this.categoryRepo.findOneBy({
+      category_id: categoryId,
+      is_active: true,
+    });
     if (!category) {
       throw new NotFoundError(input.id, Category);
     }

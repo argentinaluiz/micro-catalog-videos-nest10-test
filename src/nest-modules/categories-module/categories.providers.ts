@@ -1,5 +1,5 @@
 import { CategoryInMemoryRepository } from '../../core/category/infra/db/in-memory/category-in-memory.repository';
-import { ListCategoriesUseCase } from '../../core/category/application/use-cases/list-categories/list-categories.use-case';
+import { ListAllCategoriesUseCase } from '../../core/category/application/use-cases/list-all-categories/list-all-categories.use-case';
 import { GetCategoryUseCase } from '../../core/category/application/use-cases/get-category/get-category.use-case';
 import { DeleteCategoryUseCase } from '../../core/category/application/use-cases/delete-category/delete-category.use-case';
 import { ICategoryRepository } from '../../core/category/domain/category.repository';
@@ -33,10 +33,10 @@ export const USE_CASES = {
     },
     inject: [REPOSITORIES.CATEGORY_REPOSITORY.provide],
   },
-  LIST_CATEGORIES_USE_CASE: {
-    provide: ListCategoriesUseCase,
+  LIST_ALL_CATEGORIES_USE_CASE: {
+    provide: ListAllCategoriesUseCase,
     useFactory: (categoryRepo: ICategoryRepository) => {
-      return new ListCategoriesUseCase(categoryRepo);
+      return new ListAllCategoriesUseCase(categoryRepo);
     },
     inject: [REPOSITORIES.CATEGORY_REPOSITORY.provide],
   },

@@ -1,6 +1,7 @@
 import { DynamicModule } from '@nestjs/common';
 import { CATEGORY_PROVIDERS } from './categories.providers';
 import { CategoriesConsumer } from './categories.consumer';
+import { CategoriesResolver } from './categories.resolver';
 
 export class CategoriesModule {
   static forRoot(): DynamicModule {
@@ -10,6 +11,7 @@ export class CategoriesModule {
       providers: [
         ...Object.values(CATEGORY_PROVIDERS.REPOSITORIES),
         ...Object.values(CATEGORY_PROVIDERS.USE_CASES),
+        CategoriesResolver,
       ],
       exports: [CATEGORY_PROVIDERS.REPOSITORIES.CATEGORY_REPOSITORY.provide],
     };

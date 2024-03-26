@@ -7,7 +7,7 @@ import {
 } from '../../../domain/category.repository';
 
 export class CategoryInMemoryRepository
-  extends InMemorySearchableRepository<Category, CategoryId>
+  extends InMemorySearchableRepository<Category, CategoryId, CategoryFilter>
   implements ICategoryRepository
 {
   sortableFields: string[] = ['name', 'created_at'];
@@ -25,10 +25,19 @@ export class CategoryInMemoryRepository
     }
 
     return items.filter((i) => {
-      return (
-        !this.isDeleted(i) &&
-        i.name.toLowerCase().includes(filter.toLowerCase())
-      );
+      if (this.isDeleted(i)) {
+        return false;
+      }
+      const clauseName =
+        filter.name &&
+        i.name.toLowerCase().includes(filter.name!.toLowerCase());
+      const clauseIsActive =
+        'is_active' in filter && i.is_active === filter.is_active;
+      return filter.name && 'is_active' in filter
+        ? clauseName && clauseIsActive
+        : filter.name
+          ? clauseName
+          : clauseIsActive;
     });
   }
 

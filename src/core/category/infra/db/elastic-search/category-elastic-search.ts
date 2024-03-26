@@ -139,6 +139,124 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     return CategoryElasticSearchMapper.toEntity(id.id, document);
   }
 
+  async findOneBy(filter: {
+    category_id?: CategoryId;
+    is_active?: boolean;
+  }): Promise<Category | null> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+        must_not: [
+          {
+            exists: {
+              field: 'deleted_at',
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.category_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.category_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+
+    const result = await this.esClient.search<CategoryDocument>({
+      index: this.index,
+      query,
+    });
+
+    const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
+    const document = docs.find((doc) => {
+      if (filter.category_id) {
+        return doc._id === filter.category_id.id;
+      }
+      if (filter.is_active !== undefined) {
+        return doc._source!.is_active === filter.is_active;
+      }
+      return false;
+    });
+
+    if (!document) {
+      return null;
+    }
+
+    return CategoryElasticSearchMapper.toEntity(
+      document._id,
+      document._source!,
+    );
+  }
+
+  async findBy(filter: {
+    category_id?: CategoryId;
+    is_active?: boolean;
+  }): Promise<Category[]> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+        must_not: [
+          {
+            exists: {
+              field: 'deleted_at',
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.category_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.category_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+
+    const result = await this.esClient.search<CategoryDocument>({
+      index: this.index,
+      query,
+    });
+
+    return result.hits.hits.map((hit) =>
+      CategoryElasticSearchMapper.toEntity(hit._id, hit._source!),
+    );
+  }
+
   async findAll(): Promise<Category[]> {
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
@@ -343,15 +461,26 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     };
 
     if (props.filter) {
-      //@ts-expect-error - must is an array
-      query.bool.must.push({
-        wildcard: {
-          category_name: {
-            value: `*${props.filter}*`,
-            case_insensitive: true,
+      if (props.filter.name) {
+        //@ts-expect-error - must is an array
+        query.bool.must.push({
+          wildcard: {
+            category_name: {
+              value: `*${props.filter.name}*`,
+              case_insensitive: true,
+            },
           },
-        },
-      });
+        });
+      }
+
+      if (props.filter.is_active !== undefined) {
+        //@ts-expect-error - must is an array
+        query.bool.must.push({
+          match: {
+            is_active: props.filter.is_active,
+          },
+        });
+      }
     }
 
     const result = await this.esClient.search({

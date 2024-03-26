@@ -103,6 +103,70 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     await expect(repository.findById(entity.category_id)).resolves.toBeNull();
   });
 
+  it('should find a entity by filter', async () => {
+    const entity = Category.create({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: 'some description',
+      is_active: false,
+      created_at: new Date(),
+    });
+    await repository.insert(entity);
+
+    let entityFound = await repository.findOneBy({
+      category_id: entity.category_id,
+    });
+    expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
+
+    expect(repository.findOneBy({ is_active: true })).resolves.toBeNull();
+
+    entityFound = await repository.findOneBy({
+      category_id: entity.category_id,
+      is_active: false,
+    });
+    expect(entityFound?.toJSON()).toStrictEqual(entity.toJSON());
+
+    entity.markAsDeleted();
+
+    await repository.update(entity);
+
+    expect(
+      repository.findOneBy({ category_id: entity.category_id }),
+    ).resolves.toBeNull();
+  });
+
+  it('should find entities by filter', async () => {
+    const entity = Category.create({
+      category_id: new CategoryId(),
+      name: 'Movie',
+      description: 'some description',
+      is_active: false,
+      created_at: new Date(),
+    });
+    await repository.insert(entity);
+
+    let entities = await repository.findBy({ category_id: entity.category_id });
+    expect(entities).toHaveLength(1);
+    expect(JSON.stringify(entities)).toBe(JSON.stringify([entity]));
+
+    entities = await repository.findBy({ is_active: true });
+    expect(entities).toHaveLength(0);
+
+    entities = await repository.findBy({
+      category_id: entity.category_id,
+      is_active: false,
+    });
+    expect(entities).toHaveLength(1);
+    expect(JSON.stringify(entities)).toBe(JSON.stringify([entity]));
+
+    entity.markAsDeleted();
+
+    await repository.update(entity);
+
+    entities = await repository.findBy({ category_id: entity.category_id });
+    expect(entities).toHaveLength(0);
+  });
+
   it('should return all categories', async () => {
     const entity = new Category({
       category_id: new CategoryId(),
@@ -232,7 +296,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
       await repository.bulkInsert(categories);
       const spyToEntity = jest.spyOn(CategoryElasticSearchMapper, 'toEntity');
 
-      const searchOutput = await repository.search(new CategorySearchParams());
+      const searchOutput = await repository.search(
+        CategorySearchParams.create(),
+      );
       expect(searchOutput).toBeInstanceOf(CategorySearchResult);
       expect(spyToEntity).toHaveBeenCalledTimes(15);
       expect(searchOutput.toJSON()).toMatchObject({
@@ -257,7 +323,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
 
       await repository.update(categories[0]);
 
-      const searchOutput2 = await repository.search(new CategorySearchParams());
+      const searchOutput2 = await repository.search(
+        CategorySearchParams.create(),
+      );
       expect(searchOutput2).toBeInstanceOf(CategorySearchResult);
       expect(searchOutput2.toJSON()).toMatchObject({
         total: 15,
@@ -275,7 +343,9 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
         .withDescription(null)
         .withCreatedAt((index) => new Date(created_at.getTime() + index))
         .build();
-      const searchOutput = await repository.search(new CategorySearchParams());
+      const searchOutput = await repository.search(
+        CategorySearchParams.create(),
+      );
       const items = searchOutput.items;
       [...items].reverse().forEach((item, index) => {
         expect(`Movie ${index}`).toBe(`${categories[index + 1].name}`);
@@ -303,16 +373,17 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           .aCategory()
           .withName('TeSt')
           .withCreatedAt(new Date(new Date().getTime() + 1000))
+          .deactivate()
           .build(),
       ];
 
       await repository.bulkInsert(categories);
 
       let searchOutput = await repository.search(
-        new CategorySearchParams({
+        CategorySearchParams.create({
           page: 1,
           per_page: 2,
-          filter: 'TEST',
+          filter: { name: 'TEST' },
         }),
       );
       expect(searchOutput.toJSON(true)).toMatchObject(
@@ -325,10 +396,10 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
       );
 
       searchOutput = await repository.search(
-        new CategorySearchParams({
+        CategorySearchParams.create({
           page: 2,
           per_page: 2,
-          filter: 'TEST',
+          filter: { name: 'TEST' },
         }),
       );
       expect(searchOutput.toJSON(true)).toMatchObject(
@@ -336,6 +407,22 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           items: [categories[3]],
           total: 3,
           current_page: 2,
+          per_page: 2,
+        }).toJSON(true),
+      );
+
+      searchOutput = await repository.search(
+        CategorySearchParams.create({
+          page: 1,
+          per_page: 2,
+          filter: { name: 'TEST', is_active: false },
+        }),
+      );
+      expect(searchOutput.toJSON(true)).toMatchObject(
+        new CategorySearchResult({
+          items: [categories[3]],
+          total: 1,
+          current_page: 1,
           per_page: 2,
         }).toJSON(true),
       );
@@ -355,7 +442,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
 
       const arrange = [
         {
-          params: new CategorySearchParams({
+          params: CategorySearchParams.create({
             page: 1,
             per_page: 2,
             sort: 'name',
@@ -368,7 +455,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           }),
         },
         {
-          params: new CategorySearchParams({
+          params: CategorySearchParams.create({
             page: 2,
             per_page: 2,
             sort: 'name',
@@ -381,7 +468,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           }),
         },
         {
-          params: new CategorySearchParams({
+          params: CategorySearchParams.create({
             page: 1,
             per_page: 2,
             sort: 'name',
@@ -395,7 +482,7 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           }),
         },
         {
-          params: new CategorySearchParams({
+          params: CategorySearchParams.create({
             page: 2,
             per_page: 2,
             sort: 'name',
@@ -427,11 +514,11 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
 
       const arrange = [
         {
-          search_params: new CategorySearchParams({
+          search_params: CategorySearchParams.create({
             page: 1,
             per_page: 2,
             sort: 'name',
-            filter: 'TEST',
+            filter: { name: 'TEST' },
           }),
           search_result: new CategorySearchResult({
             items: [categories[2], categories[4]],
@@ -441,16 +528,30 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
           }),
         },
         {
-          search_params: new CategorySearchParams({
+          search_params: CategorySearchParams.create({
             page: 2,
             per_page: 2,
             sort: 'name',
-            filter: 'TEST',
+            filter: { name: 'TEST' },
           }),
           search_result: new CategorySearchResult({
             items: [categories[0]],
             total: 3,
             current_page: 2,
+            per_page: 2,
+          }),
+        },
+        {
+          search_params: CategorySearchParams.create({
+            page: 1,
+            per_page: 2,
+            sort: 'name',
+            filter: { name: 'TEST', is_active: true },
+          }),
+          search_result: new CategorySearchResult({
+            items: [categories[2], categories[4]],
+            total: 3,
+            current_page: 1,
             per_page: 2,
           }),
         },

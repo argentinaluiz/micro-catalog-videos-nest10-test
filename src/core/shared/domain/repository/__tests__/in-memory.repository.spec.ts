@@ -72,6 +72,28 @@ describe('InMemoryRepository Unit Tests', () => {
     expect(entityFound).toBeNull();
   });
 
+  it('should find a entity by filter', async () => {
+    const entity = new StubAggregate({ name: 'name value', price: 5 });
+    await repository.insert(entity);
+
+    let entityFound = await repository.findOneBy({ name: 'name value' });
+    expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
+
+    entityFound = await repository.findOneBy({ name: 'not found' });
+    expect(entityFound).toBeNull();
+  });
+
+  it('should find entities by filter', async () => {
+    const entity = new StubAggregate({ name: 'name value', price: 5 });
+    await repository.insert(entity);
+
+    let entitiesFound = await repository.findBy({ name: 'name value' });
+    expect(entitiesFound).toStrictEqual([entity]);
+
+    entitiesFound = await repository.findBy({ name: 'not found' });
+    expect(entitiesFound).toStrictEqual([]);
+  });
+
   it('should returns all entities', async () => {
     const entity = new StubAggregate({ name: 'name value', price: 5 });
     await repository.insert(entity);

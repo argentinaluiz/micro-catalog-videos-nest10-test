@@ -1,5 +1,4 @@
 import { AggregateRoot } from '../aggregate-root';
-import { Either } from '../either';
 import { InvalidArgumentError } from '../errors/invalid-argument.error';
 import { NotFoundError } from '../errors/not-found.error';
 import { ValueObject } from '../value-object';
@@ -27,6 +26,29 @@ export abstract class InMemoryRepository<
   async findById(entityId: ID): Promise<E | null> {
     const entity = await this._get(entityId);
     return entity ? this.clone(entity) : null;
+  }
+
+  async findOneBy(filter: Partial<E>): Promise<E | null> {
+    const entity = this.items.find((item) => {
+      return Object.entries(filter).every(([key, value]) => {
+        return value instanceof ValueObject
+          ? item[key].equals(value)
+          : item[key] === value;
+      });
+    });
+    return entity ? this.clone(entity) : null;
+  }
+
+  async findBy(filter: Partial<E>): Promise<E[]> {
+    return this.items
+      .filter((entity) => {
+        return Object.entries(filter).every(([key, value]) => {
+          value instanceof ValueObject
+            ? entity[key].equals(value)
+            : entity[key] === value;
+        });
+      })
+      .map(this.clone);
   }
 
   async findAll(): Promise<E[]> {

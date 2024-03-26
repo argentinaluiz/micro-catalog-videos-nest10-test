@@ -6,7 +6,7 @@ services:
     hostname: zookeeper
     container_name: zookeeper
     ports:
-      - "2181:2181"
+      - "2183:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -46,7 +46,7 @@ services:
     depends_on:
       - kafka
     ports:
-      - "8081:8081"
+      - "8083:8081"
     environment:
       SCHEMA_REGISTRY_HOST_NAME: schema-registry
       SCHEMA_REGISTRY_KAFKASTORE_BOOTSTRAP_SERVERS: 'kafka:29092'
@@ -59,7 +59,7 @@ services:
       - kafka
       - schema-registry
     ports:
-      - "8083:8083"
+      - "8084:8083"
     environment:
       CONNECT_BOOTSTRAP_SERVERS: 'kafka:29092'
       CONNECT_REST_ADVERTISED_HOST_NAME: connect

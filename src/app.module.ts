@@ -9,6 +9,12 @@ import { ConfigModule } from './nest-modules/config-module/config.module';
 import { CategoriesModule } from './nest-modules/categories-module/categories.module';
 import { ElasticSearchModule } from './nest-modules/elastic-search-module/elastic-search.module';
 import { KafkaModule } from './nest-modules/kafka-module/kafka.module';
+import { GenresModule } from './nest-modules/genres-module/genres.module';
+import { CastMembersModule } from './nest-modules/cast-members-module/cast-members.module';
+import { VideosModule } from './nest-modules/videos-modules/videos.module';
+import { GraphQLModule } from '@nestjs/graphql';
+import { ApolloDriver } from '@nestjs/apollo';
+import { TttttModule } from './ttttt/ttttt.module';
 
 @Module({
   imports: [
@@ -27,7 +33,15 @@ import { KafkaModule } from './nest-modules/kafka-module/kafka.module';
     // }),
     KafkaModule,
     ElasticSearchModule,
-    CategoriesModule,
+    GraphQLModule.forRoot({
+      driver: ApolloDriver,
+      autoSchemaFile: true,
+    }),
+    CategoriesModule.forRoot(),
+    GenresModule.forRoot(),
+    CastMembersModule.forRoot(),
+    VideosModule,
+    TttttModule,
   ],
   controllers: [AppController],
   providers: [AppService],

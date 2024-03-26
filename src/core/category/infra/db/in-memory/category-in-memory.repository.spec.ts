@@ -17,15 +17,32 @@ describe('CategoryInMemoryRepository', () => {
   it('should filter items using filter parameter', async () => {
     const faker = CategoryFakeBuilder.aCategory();
     const items = [
-      faker.withName('test').build(),
-      faker.withName('TEST').build(),
-      faker.withName('fake').build(),
+      faker.withName('test').activate().build(),
+      faker.withName('TEST').deactivate().build(),
+      faker.withName('fake').activate().build(),
     ];
     const filterSpy = jest.spyOn(items, 'filter' as any);
 
-    const itemsFiltered = await repository['applyFilter'](items, 'TEST');
+    let itemsFiltered = await repository['applyFilter'](items, {
+      name: 'TEST',
+    });
     expect(filterSpy).toHaveBeenCalledTimes(1);
     expect(itemsFiltered).toStrictEqual([items[0], items[1]]);
+
+    itemsFiltered = await repository['applyFilter'](items, {
+      is_active: false,
+    });
+
+    expect(filterSpy).toHaveBeenCalledTimes(2);
+    expect(itemsFiltered).toStrictEqual([items[1]]);
+
+    itemsFiltered = await repository['applyFilter'](items, {
+      name: 'fake',
+      is_active: true,
+    });
+
+    expect(filterSpy).toHaveBeenCalledTimes(3);
+    expect(itemsFiltered).toStrictEqual([items[2]]);
   });
 
   it('should not filter soft deleted items', async () => {
