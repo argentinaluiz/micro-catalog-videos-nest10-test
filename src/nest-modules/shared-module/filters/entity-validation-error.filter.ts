@@ -1,6 +1,6 @@
 import { ArgumentsHost, Catch, ExceptionFilter } from '@nestjs/common';
 import { GqlContextType } from '@nestjs/graphql';
-import { EntityValidationError } from '../../core/shared/domain/validators/validation.error';
+import { EntityValidationError } from '../../../core/shared/domain/validators/validation.error';
 import { GraphQLError } from 'graphql';
 import { union } from 'lodash';
 

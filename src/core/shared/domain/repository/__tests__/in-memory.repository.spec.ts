@@ -94,6 +94,24 @@ describe('InMemoryRepository Unit Tests', () => {
     expect(entitiesFound).toStrictEqual([]);
   });
 
+  it('should find entities by filter and order', async () => {
+    const entity1 = new StubAggregate({ name: 'name value', price: 5 });
+    const entity2 = new StubAggregate({ name: 'name value', price: 10 });
+    await repository.bulkInsert([entity1, entity2]);
+
+    let entitiesFound = await repository.findBy(
+      { name: 'name value' },
+      { field: 'price', direction: 'asc' },
+    );
+    expect(entitiesFound).toStrictEqual([entity1, entity2]);
+
+    entitiesFound = await repository.findBy(
+      { name: 'name value' },
+      { field: 'price', direction: 'desc' },
+    );
+    expect(entitiesFound).toStrictEqual([entity2, entity1]);
+  });
+
   it('should returns all entities', async () => {
     const entity = new StubAggregate({ name: 'name value', price: 5 });
     await repository.insert(entity);

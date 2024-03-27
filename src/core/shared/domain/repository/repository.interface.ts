@@ -1,6 +1,6 @@
 import { AggregateRoot } from '../aggregate-root';
 import { ValueObject } from '../value-object';
-import { SearchParams } from './search-params';
+import { SearchParams, SortDirection } from './search-params';
 import { SearchResult } from './search-result';
 
 export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
@@ -8,7 +8,13 @@ export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
   bulkInsert(entities: E[]): Promise<void>;
   findById(id: ID): Promise<E | null>;
   findOneBy(filter: Partial<E>): Promise<E | null>;
-  findBy(filter: Partial<E>): Promise<E[]>;
+  findBy(
+    filter: Partial<E>,
+    order?: {
+      field: string;
+      direction: SortDirection;
+    },
+  ): Promise<E[]>;
   findAll(): Promise<E[]>;
   findByIds(ids: ID[]): Promise<{ exists: E[]; not_exists: ID[] }>;
   existsById(ids: ID[]): Promise<{

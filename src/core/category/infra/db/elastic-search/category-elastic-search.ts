@@ -12,6 +12,7 @@ import {
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
 import { LoadEntityError } from '../../../../shared/domain/validators/validation.error';
+import { SortDirection } from '../../../../shared/domain/repository/search-params';
 
 export const CATEGORY_DOCUMENT_TYPE_NAME = 'Category';
 
@@ -206,10 +207,16 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     );
   }
 
-  async findBy(filter: {
-    category_id?: CategoryId;
-    is_active?: boolean;
-  }): Promise<Category[]> {
+  async findBy(
+    filter: {
+      category_id?: CategoryId;
+      is_active?: boolean;
+    },
+    order?: {
+      field: 'name' | 'created_at';
+      direction: SortDirection;
+    },
+  ): Promise<Category[]> {
     const query: QueryDslQueryContainer = {
       bool: {
         must: [
@@ -250,6 +257,10 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
       query,
+      sort:
+        order && this.sortableFieldsMap.hasOwnProperty(order.field)
+          ? { [this.sortableFieldsMap[order.field]]: order.direction }
+          : undefined,
     });
 
     return result.hits.hits.map((hit) =>

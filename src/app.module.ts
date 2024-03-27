@@ -14,11 +14,12 @@ import { CastMembersModule } from './nest-modules/cast-members-module/cast-membe
 import { VideosModule } from './nest-modules/videos-modules/videos.module';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver } from '@nestjs/apollo';
-import { TttttModule } from './ttttt/ttttt.module';
+
+export const appConfigurationModule = ConfigModule.forRoot();
 
 @Module({
   imports: [
-    ConfigModule.forRoot(),
+    appConfigurationModule,
     DiscoveryModule,
     // CacheModule.registerAsync({
     //   useFactory: async () => {
@@ -41,7 +42,6 @@ import { TttttModule } from './ttttt/ttttt.module';
     GenresModule.forRoot(),
     CastMembersModule.forRoot(),
     VideosModule,
-    TttttModule,
   ],
   controllers: [AppController],
   providers: [AppService],

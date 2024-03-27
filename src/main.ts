@@ -4,7 +4,7 @@ import {
   FastifyAdapter,
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
-import { EntityValidationErrorFilter } from './nest-modules/shared-module/entity-validation-error.filter';
+import { EntityValidationErrorFilter } from './nest-modules/shared-module/filters/entity-validation-error.filter';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestFastifyApplication>(

@@ -39,16 +39,37 @@ export abstract class InMemoryRepository<
     return entity ? this.clone(entity) : null;
   }
 
-  async findBy(filter: Partial<E>): Promise<E[]> {
-    return this.items
-      .filter((entity) => {
-        return Object.entries(filter).every(([key, value]) => {
-          value instanceof ValueObject
-            ? entity[key].equals(value)
-            : entity[key] === value;
-        });
-      })
-      .map(this.clone);
+  async findBy(
+    filter: Partial<E>,
+    order?: {
+      field: string;
+      direction: SortDirection;
+    },
+  ): Promise<E[]> {
+    let items = this.items.filter((entity) => {
+      return Object.entries(filter).every(([key, value]) => {
+        return value instanceof ValueObject
+          ? entity[key].equals(value)
+          : entity[key] === value;
+      });
+    });
+    if (order) {
+      items = items.sort((a, b) => {
+        const aValue = a[order.field];
+        const bValue = b[order.field];
+        if (aValue < bValue) {
+          return order.direction === 'asc' ? -1 : 1;
+        }
+
+        if (aValue > bValue) {
+          return order.direction === 'asc' ? 1 : -1;
+        }
+
+        return 0;
+      });
+    }
+
+    return items.map(this.clone);
   }
 
   async findAll(): Promise<E[]> {

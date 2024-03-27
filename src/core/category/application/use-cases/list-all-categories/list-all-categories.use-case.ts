@@ -12,9 +12,12 @@ export class ListAllCategoriesUseCase
   constructor(private categoryRepo: ICategoryRepository) {}
 
   async execute(): Promise<ListCategoriesOutput> {
-    const categories = await this.categoryRepo.findBy({
-      is_active: true,
-    });
+    const categories = await this.categoryRepo.findBy(
+      {
+        is_active: true,
+      },
+      { field: 'name', direction: 'asc' },
+    );
     return categories.map(CategoryOutputMapper.toOutput);
   }
 }

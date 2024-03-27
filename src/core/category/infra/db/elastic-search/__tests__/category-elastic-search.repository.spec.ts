@@ -135,6 +135,35 @@ describe('CategoryElasticSearchRepository Integration Tests', () => {
     ).resolves.toBeNull();
   });
 
+  it('should find entities by filter and order', async () => {
+    const categories = [
+      Category.fake().aCategory().withName('a').build(),
+      Category.fake().aCategory().withName('b').build(),
+    ];
+
+    await repository.bulkInsert(categories);
+
+    let entities = await repository.findBy(
+      { is_active: true },
+      {
+        field: 'name',
+        direction: 'asc',
+      },
+    );
+
+    expect(entities).toStrictEqual([categories[0], categories[1]]);
+
+    entities = await repository.findBy(
+      { is_active: true },
+      {
+        field: 'name',
+        direction: 'desc',
+      },
+    );
+
+    expect(entities).toStrictEqual([categories[1], categories[0]]);
+  });
+
   it('should find entities by filter', async () => {
     const entity = Category.create({
       category_id: new CategoryId(),
