@@ -58,9 +58,6 @@ describe('InMemoryRepository Unit Tests', () => {
     entityFound = await repository.findById(entity.entity_id);
     expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
 
-    entityFound = await repository.findById(entity.entity_id);
-    expect(entity.toJSON()).toStrictEqual(entityFound!.toJSON());
-
     const deletedEntity = new StubAggregate({
       entity_id: new Uuid(),
       name: 'name value',
@@ -69,6 +66,11 @@ describe('InMemoryRepository Unit Tests', () => {
     });
     await repository.insert(deletedEntity);
     entityFound = await repository.findById(deletedEntity.entity_id);
+    expect(entityFound?.toJSON()).toStrictEqual(deletedEntity.toJSON());
+
+    entityFound = await repository
+      .ignoreDeleted()
+      .findById(deletedEntity.entity_id);
     expect(entityFound).toBeNull();
   });
 
@@ -81,6 +83,19 @@ describe('InMemoryRepository Unit Tests', () => {
 
     entityFound = await repository.findOneBy({ name: 'not found' });
     expect(entityFound).toBeNull();
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'new name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+
+    await repository.insert(deletedEntity);
+    entityFound = await repository
+      .ignoreDeleted()
+      .findOneBy({ name: 'new name value' });
+    expect(entityFound).toBeNull();
   });
 
   it('should find entities by filter', async () => {
@@ -91,6 +106,20 @@ describe('InMemoryRepository Unit Tests', () => {
     expect(entitiesFound).toStrictEqual([entity]);
 
     entitiesFound = await repository.findBy({ name: 'not found' });
+    expect(entitiesFound).toStrictEqual([]);
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'new name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+
+    await repository.insert(deletedEntity);
+
+    entitiesFound = await repository
+      .ignoreDeleted()
+      .findBy({ name: 'new name value' });
     expect(entitiesFound).toStrictEqual([]);
   });
 
@@ -122,19 +151,30 @@ describe('InMemoryRepository Unit Tests', () => {
 
     const deletedEntity = new StubAggregate({
       entity_id: new Uuid(),
+      name: 'new name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+    await repository.insert(deletedEntity);
+    const entitiesNotDeleted = await repository.ignoreDeleted().findAll();
+    expect(entitiesNotDeleted).toStrictEqual([entity]);
+  });
+
+  it('should throws error on update when entity not found', async () => {
+    const entity = new StubAggregate({ name: 'name value', price: 5 });
+    expect(repository.update(entity)).rejects.toThrow(
+      new NotFoundError(entity.entity_id, StubAggregate),
+    );
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
       name: 'name value',
       price: 5,
       deleted_at: new Date(),
     });
     await repository.insert(deletedEntity);
-    const entitiesNotDeleted = await repository.findAll();
-    expect(entitiesNotDeleted).toStrictEqual([entity]);
-  });
-
-  it('should throws error on update when entity not found', () => {
-    const entity = new StubAggregate({ name: 'name value', price: 5 });
-    expect(repository.update(entity)).rejects.toThrow(
-      new NotFoundError(entity.entity_id, StubAggregate),
+    expect(repository.ignoreDeleted().update(deletedEntity)).rejects.toThrow(
+      new NotFoundError(deletedEntity.entity_id, StubAggregate),
     );
   });
 
@@ -158,12 +198,14 @@ describe('InMemoryRepository Unit Tests', () => {
     });
 
     await repository.insert(deletedEntity);
-    await expect(repository.update(deletedEntity)).rejects.toThrow(
+    await expect(
+      repository.ignoreDeleted().update(deletedEntity),
+    ).rejects.toThrow(
       new NotFoundError(deletedEntity.entity_id, StubAggregate),
     );
   });
 
-  it('should throws error on delete when entity not found', () => {
+  it('should throws error on delete when entity not found', async () => {
     const uuid = new Uuid();
     expect(repository.delete(uuid)).rejects.toThrow(
       new NotFoundError(uuid.id, StubAggregate),
@@ -173,6 +215,19 @@ describe('InMemoryRepository Unit Tests', () => {
       repository.delete(new Uuid('9366b7dc-2d71-4799-b91c-c64adb205104')),
     ).rejects.toThrow(
       new NotFoundError('9366b7dc-2d71-4799-b91c-c64adb205104', StubAggregate),
+    );
+
+    const deletedEntity = new StubAggregate({
+      entity_id: new Uuid(),
+      name: 'name value',
+      price: 5,
+      deleted_at: new Date(),
+    });
+    await repository.insert(deletedEntity);
+    expect(
+      repository.ignoreDeleted().delete(deletedEntity.entity_id),
+    ).rejects.toThrow(
+      new NotFoundError(deletedEntity.entity_id, StubAggregate),
     );
   });
 

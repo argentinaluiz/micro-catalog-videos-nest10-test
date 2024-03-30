@@ -12,6 +12,7 @@ export abstract class InMemoryRepository<
 > implements IRepository<E, ID>
 {
   items: E[] = [];
+  scopes: string[] = [];
 
   constructor() {}
 
@@ -29,7 +30,7 @@ export abstract class InMemoryRepository<
   }
 
   async findOneBy(filter: Partial<E>): Promise<E | null> {
-    const entity = this.items.find((item) => {
+    const entity = this.applyScopes(this.items).find((item) => {
       return Object.entries(filter).every(([key, value]) => {
         return value instanceof ValueObject
           ? item[key].equals(value)
@@ -46,7 +47,7 @@ export abstract class InMemoryRepository<
       direction: SortDirection;
     },
   ): Promise<E[]> {
-    let items = this.items.filter((entity) => {
+    let items = this.applyScopes(this.items).filter((entity) => {
       return Object.entries(filter).every(([key, value]) => {
         return value instanceof ValueObject
           ? entity[key].equals(value)
@@ -73,17 +74,13 @@ export abstract class InMemoryRepository<
   }
 
   async findAll(): Promise<E[]> {
-    return this.items
-      .filter((entity) => !this.isDeleted(entity))
-      .map(this.clone);
+    return this.applyScopes(this.items).map(this.clone);
   }
 
   async findByIds(ids: ID[]): Promise<{ exists: E[]; not_exists: ID[] }> {
     //avoid to return repeated items
-    const foundItems = this.items.filter((entity) => {
-      return (
-        !this.isDeleted(entity) && ids.some((id) => entity.entity_id.equals(id))
-      );
+    const foundItems = this.applyScopes(this.items).filter((entity) => {
+      return ids.some((id) => entity.entity_id.equals(id));
     });
     const notFoundIds = ids.filter(
       (id) => !foundItems.some((entity) => entity.entity_id.equals(id)),
@@ -111,8 +108,8 @@ export abstract class InMemoryRepository<
     const existsId = new Set<ID>();
     const notExistsId = new Set<ID>();
     ids.forEach((id) => {
-      const item = this.items.find(
-        (entity) => !this.isDeleted(entity) && entity.entity_id.equals(id),
+      const item = this.applyScopes(this.items).find((entity) =>
+        entity.entity_id.equals(id),
       );
       item ? existsId.add(id) : notExistsId.add(id);
     });
@@ -134,7 +131,9 @@ export abstract class InMemoryRepository<
   }
 
   async delete(id: ID): Promise<void> {
-    const indexFound = this.items.findIndex((i) => i.entity_id.equals(id));
+    const indexFound = this.applyScopes(this.items).findIndex((i) =>
+      i.entity_id.equals(id),
+    );
     if (indexFound < 0) {
       throw new NotFoundError(id, this.getEntity());
     }
@@ -143,18 +142,34 @@ export abstract class InMemoryRepository<
   }
 
   protected async _get(id: ID): Promise<E | null> {
-    const item = this.items.find(
-      (i) => !this.isDeleted(i) && i.entity_id.equals(id),
+    const item = this.applyScopes(this.items).find((i) =>
+      i.entity_id.equals(id),
     );
     return typeof item === 'undefined' ? null : item;
   }
 
-  protected isDeleted(entity: E): boolean {
-    return 'deleted_at' in entity ? entity.deleted_at !== null : false;
-  }
-
   protected clone(obj: E): E {
     return Object.assign(Object.create(Object.getPrototypeOf(obj)), obj);
+  }
+
+  ignoreSoftDeleted(): this {
+    this.scopes.push('ignore-soft-deleted');
+    return this;
+  }
+
+  protected applyScopes(context: E[]): any {
+    return this.scopes.includes('ignore-soft-deleted')
+      ? context.filter((entity) => !this.isDeleted(entity))
+      : context;
+  }
+
+  clearScopes(): this {
+    this.scopes = [];
+    return this;
+  }
+
+  protected isDeleted(entity: E): boolean {
+    return 'deleted_at' in entity ? entity.deleted_at !== null : false;
   }
 
   abstract getEntity(): new (...args: any[]) => E;

@@ -37,24 +37,24 @@ describe('VideoElasticSearchMapper', () => {
       video_url: 'http://video.com',
       categories: [
         {
-          id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
-          name: 'Test',
+          category_id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
+          category_name: 'Test',
           is_active: true,
           deleted_at: null,
         },
       ],
       genres: [
         {
-          id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
-          name: 'Test',
+          genre_id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
+          genre_name: 'Test',
           is_active: true,
           deleted_at: null,
         },
       ],
       cast_members: [
         {
-          id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
-          name: 'Test',
+          cast_member_id: '6b4f4b3b-1b7b-4b6b-8b1b-7b4b3b1b7b4b',
+          cast_member_name: 'Test',
           cast_member_type: CastMemberTypes.ACTOR,
           deleted_at: null,
         },
@@ -84,8 +84,8 @@ describe('VideoElasticSearchMapper', () => {
           .map(
             (category) =>
               new NestedCategory({
-                category_id: new CategoryId(category.id),
-                name: category.name,
+                category_id: new CategoryId(category.category_id),
+                name: category.category_name,
                 is_active: category.is_active,
                 deleted_at: category.deleted_at as null,
               }),
@@ -97,8 +97,8 @@ describe('VideoElasticSearchMapper', () => {
           .map(
             (genre) =>
               new NestedGenre({
-                genre_id: new GenreId(genre.id),
-                name: genre.name,
+                genre_id: new GenreId(genre.genre_id),
+                name: genre.genre_name,
                 is_active: genre.is_active,
                 deleted_at: genre.deleted_at as null,
               }),
@@ -110,8 +110,8 @@ describe('VideoElasticSearchMapper', () => {
           .map(
             (castMember) =>
               new NestedCastMember({
-                cast_member_id: new CastMemberId(castMember.id),
-                name: castMember.name,
+                cast_member_id: new CastMemberId(castMember.cast_member_id),
+                name: castMember.cast_member_name,
                 type: CastMemberType.create(castMember.cast_member_type).ok,
                 deleted_at: castMember.deleted_at as null,
               }),
@@ -140,16 +140,18 @@ describe('VideoElasticSearchMapper', () => {
       expect(result2).toEqual(video);
 
       videoDocument.categories[0].deleted_at = new Date();
-      video.categories.get(videoDocument.categories[0].id)!.deleted_at =
-        videoDocument.categories[0].deleted_at;
+      video.categories.get(
+        videoDocument.categories[0].category_id,
+      )!.deleted_at = videoDocument.categories[0].deleted_at;
 
       videoDocument.genres[0].deleted_at = new Date();
-      video.genres.get(videoDocument.genres[0].id)!.deleted_at =
+      video.genres.get(videoDocument.genres[0].genre_id)!.deleted_at =
         videoDocument.genres[0].deleted_at;
 
       videoDocument.cast_members[0].deleted_at = new Date();
-      video.cast_members.get(videoDocument.cast_members[0].id)!.deleted_at =
-        videoDocument.cast_members[0].deleted_at;
+      video.cast_members.get(
+        videoDocument.cast_members[0].cast_member_id,
+      )!.deleted_at = videoDocument.cast_members[0].deleted_at;
 
       const result3 = VideoElasticSearchMapper.toEntity(
         video.video_id.id,
@@ -170,21 +172,24 @@ describe('VideoElasticSearchMapper', () => {
       const result2 = VideoElasticSearchMapper.toDocument(video);
       expect(result2).toEqual(videoDocument);
 
-      video.categories.get(videoDocument.categories[0].id)!.deleted_at =
-        new Date();
+      video.categories.get(
+        videoDocument.categories[0].category_id,
+      )!.deleted_at = new Date();
       videoDocument.categories[0].deleted_at = video.categories.get(
-        videoDocument.categories[0].id,
+        videoDocument.categories[0].category_id,
       )!.deleted_at;
 
-      video.genres.get(videoDocument.genres[0].id)!.deleted_at = new Date();
-      videoDocument.genres[0].deleted_at = video.genres.get(
-        videoDocument.genres[0].id,
-      )!.deleted_at;
-
-      video.cast_members.get(videoDocument.cast_members[0].id)!.deleted_at =
+      video.genres.get(videoDocument.genres[0].genre_id)!.deleted_at =
         new Date();
+      videoDocument.genres[0].deleted_at = video.genres.get(
+        videoDocument.genres[0].genre_id,
+      )!.deleted_at;
+
+      video.cast_members.get(
+        videoDocument.cast_members[0].cast_member_id,
+      )!.deleted_at = new Date();
       videoDocument.cast_members[0].deleted_at = video.cast_members.get(
-        videoDocument.cast_members[0].id,
+        videoDocument.cast_members[0].cast_member_id,
       )!.deleted_at;
 
       const result3 = VideoElasticSearchMapper.toDocument(video);

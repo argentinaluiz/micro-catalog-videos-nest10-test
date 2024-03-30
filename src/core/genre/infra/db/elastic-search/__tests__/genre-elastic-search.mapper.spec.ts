@@ -37,8 +37,8 @@ describe('GenreElasticSearchMapper', () => {
           .map(
             (category) =>
               new NestedCategory({
-                category_id: new CategoryId(category.id),
-                name: category.name,
+                category_id: new CategoryId(category.category_id),
+                name: category.category_name,
                 is_active: category.is_active,
                 deleted_at: category.deleted_at as null,
               }),
@@ -68,8 +68,9 @@ describe('GenreElasticSearchMapper', () => {
       expect(result2).toEqual(genre);
 
       genreDocument.categories[0].deleted_at = new Date();
-      genre.categories.get(genreDocument.categories[0].id)!.deleted_at =
-        genreDocument.categories[0].deleted_at;
+      genre.categories.get(
+        genreDocument.categories[0].category_id,
+      )!.deleted_at = genreDocument.categories[0].deleted_at;
 
       const result3 = GenreElasticSearchMapper.toEntity(
         genre.genre_id.id,
@@ -90,10 +91,11 @@ describe('GenreElasticSearchMapper', () => {
       const result2 = GenreElasticSearchMapper.toDocument(genre);
       expect(result2).toEqual(genreDocument);
 
-      genre.categories.get(genreDocument.categories[0].id)!.deleted_at =
-        new Date();
+      genre.categories.get(
+        genreDocument.categories[0].category_id,
+      )!.deleted_at = new Date();
       genreDocument.categories[0].deleted_at = genre.categories.get(
-        genreDocument.categories[0].id,
+        genreDocument.categories[0].category_id,
       )!.deleted_at;
 
       const result3 = GenreElasticSearchMapper.toDocument(genre);

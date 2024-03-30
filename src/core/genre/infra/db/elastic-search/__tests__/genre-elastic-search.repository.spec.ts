@@ -1,14 +1,7 @@
-import {
-  GenreElasticSearchMapper,
-  GenreElasticSearchRepository,
-} from '../genre-elastic-search';
+import { GenreElasticSearchRepository } from '../genre-elastic-search';
 import { Genre, GenreId } from '../../../../domain/genre.aggregate';
 import { NotFoundError } from '../../../../../shared/domain/errors/not-found.error';
 import { setupElasticSearch } from '../../../../../shared/infra/testing/helpers';
-import {
-  GenreSearchParams,
-  GenreSearchResult,
-} from '../../../../domain/genre.repository';
 import { Category } from '../../../../../category/domain/category.aggregate';
 
 describe('GenreElasticSearchRepository Integration Tests', () => {
@@ -46,37 +39,6 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     expect(foundGenres[1].toJSON()).toStrictEqual(genres[1].toJSON());
   });
 
-  it('should delete a entity', async () => {
-    const entity = Genre.fake().aGenre().build();
-    await repository.insert(entity);
-
-    await repository.delete(entity.genre_id);
-    const document = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.genre_id.id,
-        },
-      },
-    });
-    expect(document.hits.hits.length).toBe(0);
-
-    await repository.insert(entity);
-    entity.markAsDeleted();
-    await repository.update(entity);
-
-    await repository.delete(entity.genre_id);
-    const document2 = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.genre_id.id,
-        },
-      },
-    });
-    expect(document2.hits.hits.length).toBe(0);
-  });
-
   it('should finds a entity by id', async () => {
     let entityFound = await repository.findById(new GenreId());
     expect(entityFound).toBeNull();
@@ -89,7 +51,9 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
 
     await repository.update(entity);
-    await expect(repository.findById(entity.genre_id)).resolves.toBeNull();
+    await expect(
+      repository.ignoreSoftDeleted().findById(entity.genre_id),
+    ).resolves.toBeNull();
   });
 
   it('should return all genres', async () => {
@@ -102,7 +66,7 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
 
     await repository.update(entity);
-    entities = await repository.findAll();
+    entities = await repository.ignoreSoftDeleted().findAll();
     expect(entities).toHaveLength(0);
   });
 
@@ -125,9 +89,9 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
       await repository.update(genres[1]),
     ]);
 
-    const { exists: foundGenres2 } = await repository.findByIds(
-      genres.map((g) => g.genre_id),
-    );
+    const { exists: foundGenres2 } = await repository
+      .ignoreSoftDeleted()
+      .findByIds(genres.map((g) => g.genre_id));
     expect(foundGenres2.length).toBe(0);
   });
 
@@ -161,7 +125,9 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     genre.markAsDeleted();
 
     await repository.update(genre);
-    const existsResult3 = await repository.existsById([genre.genre_id]);
+    const existsResult3 = await repository
+      .ignoreSoftDeleted()
+      .existsById([genre.genre_id]);
     expect(existsResult3.exists).toHaveLength(0);
     expect(existsResult3.not_exists).toHaveLength(1);
     expect(existsResult3.not_exists[0]).toBeValueObject(genre.genre_id);
@@ -177,7 +143,7 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
     await repository.update(entity);
 
-    await expect(repository.update(entity)).rejects.toThrow(
+    await expect(repository.ignoreSoftDeleted().update(entity)).rejects.toThrow(
       new NotFoundError(entity.genre_id.id, Genre),
     );
   });
@@ -198,478 +164,46 @@ describe('GenreElasticSearchRepository Integration Tests', () => {
     await expect(repository.delete(genreId)).rejects.toThrow(
       new NotFoundError(genreId.id, Genre),
     );
+
+    const entity = Genre.fake().aGenre().build();
+    await repository.insert(entity);
+
+    entity.markAsDeleted();
+    await repository.update(entity);
+
+    await expect(
+      repository.ignoreSoftDeleted().delete(entity.genre_id),
+    ).rejects.toThrow(new NotFoundError(entity.genre_id.id, Genre));
   });
 
-  describe('search method tests', () => {
-    it('should only apply paginate and order by created desc when other params are null', async () => {
-      const genres = Genre.fake()
-        .theGenres(16)
-        .withName((index) => `Comedy ${index}`)
-        .withCreatedAt((index) => new Date(new Date().getTime() + 100 + index))
-        .build();
-      await repository.bulkInsert(genres);
-      const spyToEntity = jest.spyOn(GenreElasticSearchMapper, 'toEntity');
+  it('should delete a entity', async () => {
+    const entity = Genre.fake().aGenre().build();
+    await repository.insert(entity);
 
-      const searchOutput = await repository.search(GenreSearchParams.create());
-      expect(searchOutput).toBeInstanceOf(GenreSearchResult);
-      expect(spyToEntity).toHaveBeenCalledTimes(15);
-      expect(searchOutput.toJSON()).toMatchObject({
-        total: 16,
-        current_page: 1,
-        last_page: 2,
-        per_page: 15,
-      });
-      searchOutput.items.forEach((item) => {
-        expect(item).toBeInstanceOf(Genre);
-        expect(item.genre_id).toBeDefined();
-      });
-      const items = searchOutput.items.map((item) => item.toJSON());
-      expect(items).toMatchObject(
-        [...genres]
-          .reverse()
-          .slice(0, 15)
-          .map((item) => item.toJSON()),
-      );
-
-      genres[0].markAsDeleted();
-
-      await repository.update(genres[0]);
-
-      const searchOutput2 = await repository.search(GenreSearchParams.create());
-      expect(searchOutput2).toBeInstanceOf(GenreSearchResult);
-      expect(searchOutput2.toJSON()).toMatchObject({
-        total: 15,
-        current_page: 1,
-        last_page: 1,
-        per_page: 15,
-      });
-    });
-
-    it('should apply paginate and filter by name', async () => {
-      const nestedCategories = Category.fake().theNestedCategories(3).build();
-      const genres = [
-        Genre.fake()
-          .aGenre()
-          .withName('test')
-          .withCreatedAt(new Date(new Date().getTime() + 4000))
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .withName('a')
-          .withCreatedAt(new Date(new Date().getTime() + 3000))
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .withName('TEST')
-          .withCreatedAt(new Date(new Date().getTime() + 2000))
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .withName('TeSt')
-          .withCreatedAt(new Date(new Date().getTime() + 1000))
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .build(),
-      ];
-      await repository.bulkInsert(genres);
-
-      let searchOutput = await repository.search(
-        GenreSearchParams.create({
-          page: 1,
-          per_page: 2,
-          filter: { name: 'TEST' },
-        }),
-      );
-
-      let expected = new GenreSearchResult({
-        items: [genres[0], genres[2]],
-        total: 3,
-        current_page: 1,
-        per_page: 2,
-      }).toJSON(true);
-      expect(searchOutput.toJSON(true)).toMatchObject({
-        ...expected,
-        items: [
-          {
-            ...expected.items[0],
-            categories: expect.arrayContaining([
-              nestedCategories[0].toJSON(),
-              nestedCategories[1].toJSON(),
-              nestedCategories[2].toJSON(),
-            ]),
-          },
-          {
-            ...expected.items[1],
-            categories: expect.arrayContaining([
-              nestedCategories[0].toJSON(),
-              nestedCategories[1].toJSON(),
-              nestedCategories[2].toJSON(),
-            ]),
-          },
-        ],
-      });
-
-      expected = new GenreSearchResult({
-        items: [genres[3]],
-        total: 3,
-        current_page: 2,
-        per_page: 2,
-      }).toJSON(true);
-      searchOutput = await repository.search(
-        GenreSearchParams.create({
-          page: 2,
-          per_page: 2,
-          filter: { name: 'TEST' },
-        }),
-      );
-      expect(searchOutput.toJSON(true)).toMatchObject({
-        ...expected,
-        items: [
-          {
-            ...expected.items[0],
-            categories: expect.arrayContaining([
-              nestedCategories[0].toJSON(),
-              nestedCategories[1].toJSON(),
-              nestedCategories[2].toJSON(),
-            ]),
-          },
-        ],
-      });
-    });
-
-    it('should apply paginate and filter by categories_id', async () => {
-      const nestedCategories = Category.fake().theNestedCategories(4).build();
-      const genres = [
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .withCreatedAt(new Date(new Date().getTime() + 1000))
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .withCreatedAt(new Date(new Date().getTime() + 2000))
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withCreatedAt(new Date(new Date().getTime() + 3000))
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[3])
-          .withCreatedAt(new Date(new Date().getTime() + 4000))
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withCreatedAt(new Date(new Date().getTime() + 5000))
-          .build(),
-      ];
-      await repository.bulkInsert(genres);
-
-      const arrange = [
-        {
-          params: GenreSearchParams.create({
-            page: 1,
-            per_page: 2,
-            filter: { categories_id: [nestedCategories[0].category_id.id] },
-          }),
-          result: {
-            items: [genres[2], genres[1]],
-            total: 3,
-            current_page: 1,
-            per_page: 2,
-          },
+    await repository.delete(entity.genre_id);
+    const document = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.genre_id.id,
         },
-        {
-          params: GenreSearchParams.create({
-            page: 2,
-            per_page: 2,
-            filter: { categories_id: [nestedCategories[0].category_id.id] },
-          }),
-          result: {
-            items: [genres[0]],
-            total: 3,
-            current_page: 2,
-            per_page: 2,
-          },
-        },
-        {
-          params: GenreSearchParams.create({
-            page: 1,
-            per_page: 2,
-            filter: {
-              categories_id: [
-                nestedCategories[0].category_id.id,
-                nestedCategories[1].category_id.id,
-              ],
-            },
-          }),
-          result: {
-            items: [genres[4], genres[2]],
-            total: 4,
-            current_page: 1,
-            per_page: 2,
-          },
-        },
-        {
-          params: GenreSearchParams.create({
-            page: 2,
-            per_page: 2,
-            filter: {
-              categories_id: [
-                nestedCategories[0].category_id.id,
-                nestedCategories[1].category_id.id,
-              ],
-            },
-          }),
-          result: {
-            items: [genres[1], genres[0]],
-            total: 4,
-            current_page: 2,
-            per_page: 2,
-          },
-        },
-      ];
-      for (const arrangeItem of arrange) {
-        const searchOutput = await repository.search(arrangeItem.params);
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { items, ...otherOutput } = searchOutput;
-        const { items: itemsExpected, ...otherExpected } = arrangeItem.result;
-        expect(otherOutput).toMatchObject(otherExpected);
-        expect(searchOutput.items.length).toBe(itemsExpected.length);
-        searchOutput.items.forEach((item, key) => {
-          const expected = itemsExpected[key].toJSON();
-          expect(item.toJSON()).toStrictEqual(
-            expect.objectContaining({
-              ...expected,
-              categories: expect.arrayContaining(expected.categories),
-            }),
-          );
-        });
-      }
-    });
-
-    it('should apply paginate and sort', async () => {
-      expect(repository.sortableFields).toStrictEqual(['name', 'created_at']);
-
-      const nestedCategories = Category.fake().theNestedCategories(4).build();
-      const genres = [
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withName('b')
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withName('a')
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withName('d')
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withName('e')
-          .build(),
-        Genre.fake()
-          .aGenre()
-          .addNestedCategory(nestedCategories[0])
-          .addNestedCategory(nestedCategories[1])
-          .addNestedCategory(nestedCategories[2])
-          .withName('c')
-          .build(),
-      ];
-      await repository.bulkInsert(genres);
-
-      const arrange = [
-        {
-          params: GenreSearchParams.create({
-            page: 1,
-            per_page: 2,
-            sort: 'name',
-          }),
-          result: new GenreSearchResult({
-            items: [genres[1], genres[0]],
-            total: 5,
-            current_page: 1,
-            per_page: 2,
-          }),
-        },
-        {
-          params: GenreSearchParams.create({
-            page: 2,
-            per_page: 2,
-            sort: 'name',
-          }),
-          result: new GenreSearchResult({
-            items: [genres[4], genres[2]],
-            total: 5,
-            current_page: 2,
-            per_page: 2,
-          }),
-        },
-        {
-          params: GenreSearchParams.create({
-            page: 1,
-            per_page: 2,
-            sort: 'name',
-            sort_dir: 'desc',
-          }),
-          result: new GenreSearchResult({
-            items: [genres[3], genres[2]],
-            total: 5,
-            current_page: 1,
-            per_page: 2,
-          }),
-        },
-        {
-          params: GenreSearchParams.create({
-            page: 2,
-            per_page: 2,
-            sort: 'name',
-            sort_dir: 'desc',
-          }),
-          result: new GenreSearchResult({
-            items: [genres[4], genres[0]],
-            total: 5,
-            current_page: 2,
-            per_page: 2,
-          }),
-        },
-      ];
-
-      for (const i of arrange) {
-        const result = await repository.search(i.params);
-        const expected = i.result.toJSON(true);
-
-        expect(result.toJSON(true)).toMatchObject({
-          ...expected,
-          items: expected.items.map((i) => ({
-            ...i,
-            categories: expect.arrayContaining(i.categories),
-          })),
-        });
-      }
-    });
-  });
-
-  describe('should search using filter by name and categories_id, sort and paginate', () => {
-    const nestedCategories = Category.fake().theNestedCategories(4).build();
-
-    const genres = [
-      Genre.fake()
-        .aGenre()
-        .addNestedCategory(nestedCategories[0])
-        .addNestedCategory(nestedCategories[1])
-        .withName('test')
-        .build(),
-      Genre.fake()
-        .aGenre()
-        .addNestedCategory(nestedCategories[0])
-        .addNestedCategory(nestedCategories[1])
-        .withName('a')
-        .build(),
-      Genre.fake()
-        .aGenre()
-        .addNestedCategory(nestedCategories[0])
-        .addNestedCategory(nestedCategories[1])
-        .addNestedCategory(nestedCategories[2])
-        .withName('TEST')
-        .build(),
-      Genre.fake()
-        .aGenre()
-        .addNestedCategory(nestedCategories[3])
-        .withName('e')
-        .build(),
-      Genre.fake()
-        .aGenre()
-        .addNestedCategory(nestedCategories[1])
-        .addNestedCategory(nestedCategories[2])
-        .withName('TeSt')
-        .build(),
-    ];
-
-    const arrange = [
-      {
-        search_params: GenreSearchParams.create({
-          page: 1,
-          per_page: 2,
-          sort: 'name',
-          filter: {
-            name: 'TEST',
-            categories_id: [nestedCategories[1].category_id],
-          },
-        }),
-        search_result: new GenreSearchResult({
-          items: [genres[2], genres[4]],
-          total: 3,
-          current_page: 1,
-          per_page: 2,
-        }),
       },
-      {
-        search_params: GenreSearchParams.create({
-          page: 2,
-          per_page: 2,
-          sort: 'name',
-          filter: {
-            name: 'TEST',
-            categories_id: [nestedCategories[1].category_id],
-          },
-        }),
-        search_result: new GenreSearchResult({
-          items: [genres[0]],
-          total: 3,
-          current_page: 2,
-          per_page: 2,
-        }),
-      },
-    ];
-
-    beforeEach(async () => {
-      await repository.bulkInsert(genres);
     });
+    expect(document.hits.hits.length).toBe(0);
 
-    test.each(arrange)(
-      'when value is $search_params',
-      async ({ search_params, search_result: expected_result }) => {
-        const result = await repository.search(search_params);
-        const expected = expected_result.toJSON(true);
-        expect(result.toJSON(true)).toMatchObject({
-          ...expected,
-          items: expected.items.map((i) => ({
-            ...i,
-            categories: expect.arrayContaining(i.categories),
-          })),
-        });
+    await repository.insert(entity);
+    entity.markAsDeleted();
+    await repository.update(entity);
+
+    await repository.delete(entity.genre_id);
+    const document2 = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.genre_id.id,
+        },
       },
-    );
+    });
+    expect(document2.hits.hits.length).toBe(0);
   });
 });

@@ -1,28 +1,24 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import {
-  GenreSearchParams,
-  GenreSearchResult,
-  IGenreRepository,
-} from '../../../domain/genre.repository';
+import { IGenreRepository } from '../../../domain/genre.repository';
 import { Genre, GenreId } from '../../../domain/genre.aggregate';
 import {
   GetGetResult,
   QueryDslQueryContainer,
-  SearchTotalHits,
 } from '@elastic/elasticsearch/lib/api/types';
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
 import { CategoryId } from '../../../../category/domain/category.aggregate';
 import { NestedCategory } from '../../../../category/domain/nested-category.entity';
 import { Notification } from '../../../../shared/domain/validators/notification';
 import { LoadEntityError } from '../../../../shared/domain/validators/validation.error';
+import { SortDirection } from '../../../../shared/domain/repository/search-params';
 
 export const GENRE_DOCUMENT_TYPE_NAME = 'Genre';
 
 export type GenreDocument = {
   genre_name: string;
   categories: {
-    id: string;
-    name: string;
+    category_id: string;
+    category_name: string;
     is_active: boolean;
     deleted_at: Date | string | null;
   }[];
@@ -41,8 +37,8 @@ export class GenreElasticSearchMapper {
     const nestedCategories = document.categories.map(
       (category) =>
         new NestedCategory({
-          category_id: new CategoryId(category.id),
-          name: category.name,
+          category_id: new CategoryId(category.category_id),
+          name: category.category_name,
           is_active: category.is_active,
           deleted_at:
             category.deleted_at === null
@@ -91,8 +87,8 @@ export class GenreElasticSearchMapper {
     return {
       genre_name: entity.name,
       categories: Array.from(entity.categories.values()).map((category) => ({
-        id: category.category_id.id,
-        name: category.name,
+        category_id: category.category_id.id,
+        category_name: category.name,
         is_active: category.is_active,
         deleted_at: category.deleted_at,
       })),
@@ -109,6 +105,7 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     private readonly esClient: ElasticsearchService,
     private index: string,
   ) {}
+  scopes: string[] = [];
   sortableFields: string[] = ['name', 'created_at'];
   sortableFieldsMap: { [key: string]: string } = {
     name: 'genre_name',
@@ -136,31 +133,26 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async findById(id: GenreId): Promise<Genre | null> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<GenreDocument>[];
@@ -179,26 +171,21 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async findAll(): Promise<Genre[]> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<GenreDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
     return result.hits.hits.map((hit) =>
       GenreElasticSearchMapper.toEntity(hit._id, hit._source!),
@@ -208,31 +195,26 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   async findByIds(
     ids: GenreId[],
   ): Promise<{ exists: Genre[]; not_exists: GenreId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<GenreDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<GenreDocument>[];
@@ -244,34 +226,131 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     };
   }
 
+  async findOneBy(filter: {
+    genre_id?: GenreId;
+    is_active?: boolean;
+  }): Promise<Genre | null> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.genre_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.genre_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<GenreDocument>({
+      index: this.index,
+      query: scopedQuery,
+    });
+
+    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
+
+    if (!docs.length) {
+      return null;
+    }
+
+    return GenreElasticSearchMapper.toEntity(docs[0]._id, docs[0]._source!);
+  }
+
+  async findBy(
+    filter: {
+      category_id?: CategoryId;
+      is_active?: boolean;
+    },
+    order?: {
+      field: 'name' | 'created_at';
+      direction: SortDirection;
+    },
+  ): Promise<Genre[]> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.category_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.category_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<GenreDocument>({
+      index: this.index,
+      query: scopedQuery,
+      sort:
+        order && this.sortableFieldsMap.hasOwnProperty(order.field)
+          ? { [this.sortableFieldsMap[order.field]]: order.direction }
+          : undefined,
+    });
+
+    return result.hits.hits.map((hit) =>
+      GenreElasticSearchMapper.toEntity(hit._id, hit._source!),
+    );
+  }
+
   async existsById(
     ids: GenreId[],
   ): Promise<{ exists: GenreId[]; not_exists: GenreId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<GenreDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       _source: false,
     });
 
@@ -287,31 +366,26 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async update(entity: Genre): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: entity.genre_id.id,
+            },
+          },
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.updateByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: entity.genre_id.id,
-              },
-            },
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       script: {
         source: `
           ctx._source.genre_name = params.genre_name;
@@ -333,24 +407,26 @@ export class GenreElasticSearchRepository implements IGenreRepository {
   }
 
   async delete(id: GenreId): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: GENRE_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.deleteByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: GENRE_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       refresh: true,
     });
     if (response.deleted !== 1) {
@@ -358,78 +434,31 @@ export class GenreElasticSearchRepository implements IGenreRepository {
     }
   }
 
-  async search(props: GenreSearchParams): Promise<GenreSearchResult> {
-    const offset = (props.page - 1) * props.per_page;
-    const limit = props.per_page;
+  ignoreSoftDeleted(): GenreElasticSearchRepository {
+    this.scopes.push('ignore-soft-deleted');
+    return this;
+  }
+  clearScopes(): GenreElasticSearchRepository {
+    this.scopes = [];
+    return this;
+  }
 
-    const query: QueryDslQueryContainer = {
-      bool: {
-        must: [
-          {
-            match: {
-              type: GENRE_DOCUMENT_TYPE_NAME,
-            },
-          },
-        ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
-            },
-          },
-        ],
-      },
-    };
-
-    if (props.filter) {
-      if (props.filter.name) {
-        //@ts-expect-error - must is an array
-        query.bool.must.push({
-          wildcard: {
-            genre_name: {
-              value: `*${props.filter.name}*`,
-              case_insensitive: true,
-            },
-          },
-        });
-      }
-
-      if (props.filter.categories_id) {
-        //@ts-expect-error - must is an array
-        query.bool.must.push({
-          nested: {
-            path: 'categories',
-            query: {
-              terms: {
-                'categories.id': props.filter.categories_id,
+  protected applyScopes(query: QueryDslQueryContainer) {
+    return this.scopes.includes('ignore-soft-deleted')
+      ? {
+          ...query,
+          bool: {
+            ...query.bool,
+            must_not: [
+              {
+                exists: {
+                  field: 'deleted_at',
+                },
               },
-            },
+            ],
           },
-        });
-      }
-    }
-
-    const result = await this.esClient.search({
-      index: this.index,
-      from: offset,
-      size: limit,
-      sort:
-        props.sort && this.sortableFieldsMap.hasOwnProperty(props.sort)
-          ? { [this.sortableFieldsMap[props.sort]]: props.sort_dir! }
-          : { created_at: 'desc' },
-      query,
-    });
-    const docs = result.hits.hits as GetGetResult<GenreDocument>[];
-    const entities = docs.map((doc) =>
-      GenreElasticSearchMapper.toEntity(doc._id, doc._source!),
-    );
-    const total = result.hits.total as SearchTotalHits;
-    return new GenreSearchResult({
-      total: total.value,
-      current_page: props.page,
-      per_page: props.per_page,
-      items: entities,
-    });
+        }
+      : query;
   }
 
   getEntity(): new (...args: any[]) => Genre {

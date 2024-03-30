@@ -61,37 +61,6 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
     expect(foundVideos[1].toJSON()).toStrictEqual(videos[1].toJSON());
   });
 
-  it('should delete a entity', async () => {
-    const entity = Video.fake().aVideoWithAllMedias().build();
-    await repository.insert(entity);
-
-    await repository.delete(entity.video_id);
-    const document = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.video_id.id,
-        },
-      },
-    });
-    expect(document.hits.hits.length).toBe(0);
-
-    await repository.insert(entity);
-    entity.markAsDeleted();
-    await repository.update(entity);
-
-    await repository.delete(entity.video_id);
-    const document2 = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.video_id.id,
-        },
-      },
-    });
-    expect(document2.hits.hits.length).toBe(0);
-  });
-
   it('should finds a entity by id', async () => {
     let entityFound = await repository.findById(new VideoId());
     expect(entityFound).toBeNull();
@@ -103,7 +72,7 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
 
     entity.markAsDeleted();
 
-    await repository.update(entity);
+    await repository.ignoreSoftDeleted().update(entity);
     await expect(repository.findById(entity.video_id)).resolves.toBeNull();
   });
 
@@ -117,7 +86,7 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
 
     await repository.update(entity);
-    entities = await repository.findAll();
+    entities = await repository.ignoreSoftDeleted().findAll();
     expect(entities).toHaveLength(0);
   });
 
@@ -140,9 +109,9 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
       await repository.update(videos[1]),
     ]);
 
-    const { exists: foundVideos2 } = await repository.findByIds(
-      videos.map((g) => g.video_id),
-    );
+    const { exists: foundVideos2 } = await repository
+      .ignoreSoftDeleted()
+      .findByIds(videos.map((g) => g.video_id));
     expect(foundVideos2.length).toBe(0);
   });
 
@@ -176,7 +145,9 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
     video.markAsDeleted();
 
     await repository.update(video);
-    const existsResult3 = await repository.existsById([video.video_id]);
+    const existsResult3 = await repository
+      .ignoreSoftDeleted()
+      .existsById([video.video_id]);
     expect(existsResult3.exists).toHaveLength(0);
     expect(existsResult3.not_exists).toHaveLength(1);
     expect(existsResult3.not_exists[0]).toBeValueObject(video.video_id);
@@ -192,7 +163,7 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
     await repository.update(entity);
 
-    await expect(repository.update(entity)).rejects.toThrow(
+    await expect(repository.ignoreSoftDeleted().update(entity)).rejects.toThrow(
       new NotFoundError(entity.video_id.id, Video),
     );
   });
@@ -213,6 +184,30 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
     await expect(repository.delete(genreId)).rejects.toThrow(
       new NotFoundError(genreId.id, Video),
     );
+
+    const entity = Video.fake().aVideoWithAllMedias().build();
+    await repository.insert(entity);
+    entity.markAsDeleted();
+    await repository.update(entity);
+    expect(
+      repository.ignoreSoftDeleted().delete(entity.video_id),
+    ).rejects.toThrow(new NotFoundError(entity.video_id.id, Video));
+  });
+
+  it('should delete a entity', async () => {
+    const entity = Video.fake().aVideoWithAllMedias().build();
+    await repository.insert(entity);
+
+    await repository.delete(entity.video_id);
+    const document = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.video_id.id,
+        },
+      },
+    });
+    expect(document.hits.hits.length).toBe(0);
   });
 
   describe('search method tests', () => {
@@ -250,7 +245,9 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
 
       await repository.update(videos[0]);
 
-      const searchOutput2 = await repository.search(VideoSearchParams.create());
+      const searchOutput2 = await repository
+        .ignoreSoftDeleted()
+        .search(VideoSearchParams.create());
       expect(searchOutput2).toBeInstanceOf(VideoSearchResult);
       expect(searchOutput2.toJSON()).toMatchObject({
         total: 15,
@@ -425,7 +422,7 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
       const nestedCategories = Category.fake().theNestedCategories(4).build();
       const nestedGenres = Genre.fake().aNestedGenre().build();
       const nestedCastMembers = CastMember.fake().aNestedActor().build();
-      
+
       const videos = [
         Video.fake()
           .aVideoWithAllMedias()
@@ -468,7 +465,6 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
           .build(),
       ];
       await repository.bulkInsert(videos);
-
       const arrange = [
         {
           params: VideoSearchParams.create({
@@ -1057,5 +1053,4 @@ describe('VideoElasticSearchRepository Integration Tests', () => {
       },
     );
   });
-  
 });

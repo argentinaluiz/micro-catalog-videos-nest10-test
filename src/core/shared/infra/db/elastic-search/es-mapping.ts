@@ -3,6 +3,9 @@ import { MappingTypeMapping } from '@elastic/elasticsearch/lib/api/types';
 export const esMapping: MappingTypeMapping = {
   properties: {
     type: { type: 'keyword' },
+    category_id: { type: 'keyword' },
+    genre_id: { type: 'keyword' },
+    cast_member_id: { type: 'keyword' },
     category_name: { type: 'keyword' },
     genre_name: { type: 'keyword' },
     cast_member_name: { type: 'keyword' },
@@ -27,17 +30,17 @@ export const esMapping: MappingTypeMapping = {
     categories: {
       type: 'nested',
       properties: {
-        id: { type: 'keyword' },
-        name: { type: 'text' },
-        is_active: { type: 'boolean' },
-        deleted_at: { type: 'date' },
+        category_id: { type: 'keyword' },
+        category_name: { type: 'keyword' },
+        is_active: { type: 'boolean', copy_to: 'categories__is_active' },
+        deleted_at: { type: 'date', copy_to: 'categories__is_deleted_at' },
       },
     },
     genres: {
       type: 'nested',
       properties: {
-        id: { type: 'keyword' },
-        name: { type: 'text' },
+        genre_id: { type: 'keyword' },
+        genre_name: { type: 'keyword' },
         is_active: { type: 'boolean' },
         deleted_at: { type: 'date' },
       },
@@ -45,8 +48,8 @@ export const esMapping: MappingTypeMapping = {
     cast_members: {
       type: 'nested',
       properties: {
-        id: { type: 'keyword' },
-        name: { type: 'text' },
+        cast_member_id: { type: 'keyword' },
+        cast_member_name: { type: 'keyword' },
         cast_member_type: { type: 'integer' },
         deleted_at: { type: 'date' },
       },

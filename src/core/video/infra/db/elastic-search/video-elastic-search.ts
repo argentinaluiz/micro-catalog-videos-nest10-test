@@ -25,6 +25,7 @@ import {
 } from '../../../../cast-member/domain/cast-member-type.vo';
 import { Either } from '../../../../shared/domain/either';
 import { Rating } from '../../../domain/rating.vo';
+import { SortDirection } from '../../../../shared/domain/repository/search-params';
 
 export const VIDEO_DOCUMENT_TYPE_NAME = 'Video';
 
@@ -43,20 +44,20 @@ export type VideoDocument = {
   trailer_url: string;
   video_url: string;
   categories: {
-    id: string;
-    name: string;
+    category_id: string;
+    category_name: string;
     is_active: boolean;
     deleted_at: Date | string | null;
   }[];
   genres: {
-    id: string;
-    name: string;
+    genre_id: string;
+    genre_name: string;
     is_active: boolean;
     deleted_at: Date | string | null;
   }[];
   cast_members: {
-    id: string;
-    name: string;
+    cast_member_id: string;
+    cast_member_name: string;
     cast_member_type: number;
     deleted_at: Date | string | null;
   }[];
@@ -84,8 +85,8 @@ export class VideoElasticSearchMapper {
     const nestedCategories = document.categories.map(
       (category) =>
         new NestedCategory({
-          category_id: new CategoryId(category.id),
-          name: category.name,
+          category_id: new CategoryId(category.category_id),
+          name: category.category_name,
           is_active: category.is_active,
           deleted_at:
             category.deleted_at === null
@@ -103,8 +104,8 @@ export class VideoElasticSearchMapper {
     const nestedGenres = document.genres.map(
       (genre) =>
         new NestedGenre({
-          genre_id: new GenreId(genre.id),
-          name: genre.name,
+          genre_id: new GenreId(genre.genre_id),
+          name: genre.genre_name,
           is_active: genre.is_active,
           deleted_at:
             genre.deleted_at === null
@@ -133,8 +134,8 @@ export class VideoElasticSearchMapper {
 
           return Either.ok(
             new NestedCastMember({
-              cast_member_id: new CastMemberId(cast_member.id),
-              name: cast_member.name,
+              cast_member_id: new CastMemberId(cast_member.cast_member_id),
+              name: cast_member.cast_member_name,
               type,
               deleted_at:
                 cast_member.deleted_at === null
@@ -221,21 +222,21 @@ export class VideoElasticSearchMapper {
       trailer_url: entity.trailer_url,
       video_url: entity.video_url,
       categories: Array.from(entity.categories.values()).map((category) => ({
-        id: category.category_id.id,
-        name: category.name,
+        category_id: category.category_id.id,
+        category_name: category.name,
         is_active: category.is_active,
         deleted_at: category.deleted_at,
       })),
       genres: Array.from(entity.genres.values()).map((genre) => ({
-        id: genre.genre_id.id,
-        name: genre.name,
+        genre_id: genre.genre_id.id,
+        genre_name: genre.name,
         is_active: genre.is_active,
         deleted_at: genre.deleted_at,
       })),
       cast_members: Array.from(entity.cast_members.values()).map(
         (cast_member) => ({
-          id: cast_member.cast_member_id.id,
-          name: cast_member.name,
+          cast_member_id: cast_member.cast_member_id.id,
+          cast_member_name: cast_member.name,
           cast_member_type: cast_member.type.type,
           deleted_at: cast_member.deleted_at,
         }),
@@ -252,6 +253,7 @@ export class VideoElasticSearchRepository implements IVideoRepository {
     private readonly esClient: ElasticsearchService,
     private index: string,
   ) {}
+  scopes: string[] = [];
   sortableFields: string[] = ['title', 'created_at'];
   sortableFieldsMap: { [key: string]: string } = {
     title: 'video_title_keyword',
@@ -279,31 +281,26 @@ export class VideoElasticSearchRepository implements IVideoRepository {
   }
 
   async findById(id: VideoId): Promise<Video | null> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<VideoDocument>[];
@@ -322,26 +319,21 @@ export class VideoElasticSearchRepository implements IVideoRepository {
   }
 
   async findAll(): Promise<Video[]> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<VideoDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
     return result.hits.hits.map((hit) =>
       VideoElasticSearchMapper.toEntity(hit._id, hit._source!),
@@ -351,31 +343,27 @@ export class VideoElasticSearchRepository implements IVideoRepository {
   async findByIds(
     ids: VideoId[],
   ): Promise<{ exists: Video[]; not_exists: VideoId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<VideoDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<VideoDocument>[];
@@ -387,34 +375,120 @@ export class VideoElasticSearchRepository implements IVideoRepository {
     };
   }
 
+  async findOneBy(filter: { video_id?: VideoId }): Promise<Video | null> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.video_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.video_id.id,
+        },
+      });
+    }
+
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<VideoDocument>({
+      index: this.index,
+      query: scopedQuery,
+    });
+
+    const docs = result.hits.hits as GetGetResult<VideoDocument>[];
+
+    if (!docs.length) {
+      return null;
+    }
+
+    return VideoElasticSearchMapper.toEntity(docs[0]._id, docs[0]._source!);
+  }
+
+  async findBy(
+    filter: {
+      video_id?: VideoId;
+      is_active?: boolean;
+    },
+    order?: {
+      field: 'name' | 'created_at';
+      direction: SortDirection;
+    },
+  ): Promise<Video[]> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.video_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.video_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<VideoDocument>({
+      index: this.index,
+      query: scopedQuery,
+      sort:
+        order && this.sortableFieldsMap.hasOwnProperty(order.field)
+          ? { [this.sortableFieldsMap[order.field]]: order.direction }
+          : undefined,
+    });
+
+    return result.hits.hits.map((hit) =>
+      VideoElasticSearchMapper.toEntity(hit._id, hit._source!),
+    );
+  }
+
   async existsById(
     ids: VideoId[],
   ): Promise<{ exists: VideoId[]; not_exists: VideoId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<VideoDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       _source: false,
     });
 
@@ -430,31 +504,26 @@ export class VideoElasticSearchRepository implements IVideoRepository {
   }
 
   async update(entity: Video): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: entity.video_id.id,
+            },
+          },
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.updateByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: entity.video_id.id,
-              },
-            },
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       script: {
         source: `
           ctx._source.video_title = params.video_title;
@@ -489,24 +558,27 @@ export class VideoElasticSearchRepository implements IVideoRepository {
   }
 
   async delete(id: VideoId): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: VIDEO_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.deleteByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: VIDEO_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       refresh: true,
     });
     if (response.deleted !== 1) {
@@ -524,13 +596,6 @@ export class VideoElasticSearchRepository implements IVideoRepository {
           {
             match: {
               type: VIDEO_DOCUMENT_TYPE_NAME,
-            },
-          },
-        ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
             },
           },
         ],
@@ -557,7 +622,9 @@ export class VideoElasticSearchRepository implements IVideoRepository {
             path: 'categories',
             query: {
               terms: {
-                'categories.id': props.filter.categories_id,
+                'categories.category_id': props.filter.categories_id.map(
+                  (c) => c.id,
+                ),
               },
             },
           },
@@ -571,7 +638,7 @@ export class VideoElasticSearchRepository implements IVideoRepository {
             path: 'genres',
             query: {
               terms: {
-                'genres.id': props.filter.genres_id,
+                'genres.genre_id': props.filter.genres_id.map((g) => g.id),
               },
             },
           },
@@ -585,14 +652,25 @@ export class VideoElasticSearchRepository implements IVideoRepository {
             path: 'cast_members',
             query: {
               terms: {
-                'cast_members.id': props.filter.cast_members_id,
+                'cast_members.cast_member_id': props.filter.cast_members_id.map(
+                  (c) => c.id,
+                ),
               },
             },
           },
         });
       }
+      if (props.filter.is_published !== undefined) {
+        //@ts-expect-error - must is an array
+        query.bool.must.push({
+          match: {
+            is_published: props.filter.is_published,
+          },
+        });
+      }
     }
 
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search({
       index: this.index,
       from: offset,
@@ -601,7 +679,7 @@ export class VideoElasticSearchRepository implements IVideoRepository {
         props.sort && this.sortableFieldsMap.hasOwnProperty(props.sort)
           ? { [this.sortableFieldsMap[props.sort]]: props.sort_dir! }
           : { created_at: 'desc' },
-      query,
+      query: scopedQuery,
     });
     const docs = result.hits.hits as GetGetResult<VideoDocument>[];
     const entities = docs.map((doc) =>
@@ -614,6 +692,33 @@ export class VideoElasticSearchRepository implements IVideoRepository {
       per_page: props.per_page,
       items: entities,
     });
+  }
+
+  ignoreSoftDeleted(): VideoElasticSearchRepository {
+    this.scopes.push('ignore-soft-deleted');
+    return this;
+  }
+  clearScopes(): VideoElasticSearchRepository {
+    this.scopes = [];
+    return this;
+  }
+
+  protected applyScopes(query: QueryDslQueryContainer) {
+    return this.scopes.includes('ignore-soft-deleted')
+      ? {
+          ...query,
+          bool: {
+            ...query.bool,
+            must_not: [
+              {
+                exists: {
+                  field: 'deleted_at',
+                },
+              },
+            ],
+          },
+        }
+      : query;
   }
 
   getEntity(): new (...args: any[]) => Video {

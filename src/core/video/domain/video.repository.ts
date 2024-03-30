@@ -1,7 +1,10 @@
 import { CastMemberId } from '../../cast-member/domain/cast-member.aggregate';
 import { CategoryId } from '../../category/domain/category.aggregate';
 import { GenreId } from '../../genre/domain/genre.aggregate';
-import { ISearchableRepository } from '../../shared/domain/repository/repository.interface';
+import {
+  IRepositoryScope,
+  ISearchableRepository,
+} from '../../shared/domain/repository/repository.interface';
 import {
   SearchParams,
   SearchParamsConstructorProps,
@@ -11,6 +14,7 @@ import { Video, VideoId } from './video.aggregate';
 
 export type VideoFilter = {
   title_or_description?: string;
+  is_published?: boolean;
   categories_id?: CategoryId[];
   genres_id?: GenreId[];
   cast_members_id?: CastMemberId[];
@@ -25,6 +29,7 @@ export class VideoSearchParams extends SearchParams<VideoFilter> {
     props: Omit<SearchParamsConstructorProps<VideoFilter>, 'filter'> & {
       filter?: {
         title_or_description?: string;
+        is_published?: boolean;
         categories_id?: CategoryId[] | string[];
         genres_id?: GenreId[] | string[];
         cast_members_id?: CastMemberId[] | string[];
@@ -45,6 +50,7 @@ export class VideoSearchParams extends SearchParams<VideoFilter> {
       ...props,
       filter: {
         title_or_description: props.filter?.title_or_description,
+        is_published: props.filter?.is_published,
         categories_id,
         genres_id,
         cast_members_id,
@@ -66,6 +72,7 @@ export class VideoSearchParams extends SearchParams<VideoFilter> {
       ...(_value?.title_or_description && {
         title_or_description: `${_value?.title_or_description}`,
       }),
+      ...(_value?.is_published && { is_published: _value.is_published }),
       ...(_value?.categories_id &&
         _value.categories_id.length && {
           categories_id: _value.categories_id,
@@ -88,9 +95,10 @@ export class VideoSearchResult extends SearchResult<Video> {}
 
 export interface IVideoRepository
   extends ISearchableRepository<
-    Video,
-    VideoId,
-    VideoFilter,
-    VideoSearchParams,
-    VideoSearchResult
-  > {}
+      Video,
+      VideoId,
+      VideoFilter,
+      VideoSearchParams,
+      VideoSearchResult
+    >,
+    IRepositoryScope {}

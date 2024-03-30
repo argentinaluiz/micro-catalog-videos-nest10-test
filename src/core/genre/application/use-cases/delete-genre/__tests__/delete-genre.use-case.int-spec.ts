@@ -29,7 +29,9 @@ describe('DeleteGenreUseCase Integration Tests', () => {
     const genre = Genre.fake().aGenre().build();
     await repository.insert(genre);
     await useCase.execute(genre.genre_id.id);
-    const noEntity = await repository.findById(genre.genre_id);
+    const noEntity = await repository
+      .ignoreSoftDeleted()
+      .findById(genre.genre_id);
     expect(noEntity).toBeNull();
   });
 });

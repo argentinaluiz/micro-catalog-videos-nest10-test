@@ -12,7 +12,7 @@ export class ListAllCategoriesUseCase
   constructor(private categoryRepo: ICategoryRepository) {}
 
   async execute(): Promise<ListCategoriesOutput> {
-    const categories = await this.categoryRepo.findBy(
+    const categories = await this.categoryRepo.ignoreSoftDeleted().findBy(
       {
         is_active: true,
       },

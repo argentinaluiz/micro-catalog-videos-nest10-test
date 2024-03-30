@@ -51,37 +51,6 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
     expect(foundCastMembers[1].toJSON()).toStrictEqual(castMembers[1].toJSON());
   });
 
-  it('should delete a entity', async () => {
-    const entity = CastMember.fake().aDirector().build();
-    await repository.insert(entity);
-
-    await repository.delete(entity.cast_member_id);
-    const document = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.cast_member_id.id,
-        },
-      },
-    });
-    expect(document.hits.hits.length).toBe(0);
-
-    await repository.insert(entity);
-    entity.markAsDeleted();
-    await repository.update(entity);
-
-    await repository.delete(entity.cast_member_id);
-    const document2 = await esHelper.esClient.search({
-      index: esHelper.indexName,
-      query: {
-        match: {
-          _id: entity.cast_member_id.id,
-        },
-      },
-    });
-    expect(document2.hits.hits.length).toBe(0);
-  });
-
   it('should finds a entity by id', async () => {
     let entityFound = await repository.findById(new CastMemberId());
     expect(entityFound).toBeNull();
@@ -95,7 +64,7 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
 
     await repository.update(entity);
     await expect(
-      repository.findById(entity.cast_member_id),
+      repository.ignoreSoftDeleted().findById(entity.cast_member_id),
     ).resolves.toBeNull();
   });
 
@@ -109,7 +78,7 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
 
     await repository.update(entity);
-    entities = await repository.findAll();
+    entities = await repository.ignoreSoftDeleted().findAll();
     expect(entities).toHaveLength(0);
   });
 
@@ -132,9 +101,9 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
       await repository.update(castMembers[1]),
     ]);
 
-    const { exists: foundCastMembers2 } = await repository.findByIds(
-      castMembers.map((g) => g.cast_member_id),
-    );
+    const { exists: foundCastMembers2 } = await repository
+      .ignoreSoftDeleted()
+      .findByIds(castMembers.map((g) => g.cast_member_id));
     expect(foundCastMembers2.length).toBe(0);
   });
 
@@ -173,9 +142,9 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
     castMember.markAsDeleted();
 
     await repository.update(castMember);
-    const existsResult3 = await repository.existsById([
-      castMember.cast_member_id,
-    ]);
+    const existsResult3 = await repository
+      .ignoreSoftDeleted()
+      .existsById([castMember.cast_member_id]);
     expect(existsResult3.exists).toHaveLength(0);
     expect(existsResult3.not_exists).toHaveLength(1);
     expect(existsResult3.not_exists[0]).toBeValueObject(
@@ -193,7 +162,7 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
     entity.markAsDeleted();
     await repository.update(entity);
 
-    await expect(repository.update(entity)).rejects.toThrow(
+    await expect(repository.ignoreSoftDeleted().update(entity)).rejects.toThrow(
       new NotFoundError(entity.cast_member_id.id, CastMember),
     );
   });
@@ -214,6 +183,47 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
     await expect(repository.delete(castMemberId)).rejects.toThrow(
       new NotFoundError(castMemberId.id, CastMember),
     );
+
+    const entity = CastMember.fake().aDirector().build();
+    await repository.insert(entity);
+
+    entity.markAsDeleted();
+    await repository.update(entity);
+
+    await expect(
+      repository.ignoreSoftDeleted().delete(entity.cast_member_id),
+    ).rejects.toThrow(new NotFoundError(entity.cast_member_id.id, CastMember));
+  });
+
+  it('should delete a entity', async () => {
+    const entity = CastMember.fake().aDirector().build();
+    await repository.insert(entity);
+
+    await repository.delete(entity.cast_member_id);
+    const document = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.cast_member_id.id,
+        },
+      },
+    });
+    expect(document.hits.hits.length).toBe(0);
+
+    await repository.insert(entity);
+    entity.markAsDeleted();
+    await repository.update(entity);
+
+    await repository.delete(entity.cast_member_id);
+    const document2 = await esHelper.esClient.search({
+      index: esHelper.indexName,
+      query: {
+        match: {
+          _id: entity.cast_member_id.id,
+        },
+      },
+    });
+    expect(document2.hits.hits.length).toBe(0);
   });
 
   describe('search method tests', () => {
@@ -253,9 +263,9 @@ describe('CastMemberElasticSearchRepository Integration Tests', () => {
 
       await repository.update(castMembers[0]);
 
-      const searchOutput2 = await repository.search(
-        CastMemberSearchParams.create(),
-      );
+      const searchOutput2 = await repository
+        .ignoreSoftDeleted()
+        .search(CastMemberSearchParams.create());
       expect(searchOutput2).toBeInstanceOf(CastMemberSearchResult);
       expect(searchOutput2.toJSON()).toMatchObject({
         total: 15,

@@ -29,7 +29,9 @@ describe('DeleteVideoUseCase Integration Tests', () => {
     const video = Video.fake().aVideoWithAllMedias().build();
     await repository.insert(video);
     await useCase.execute(video.video_id.id);
-    const noEntity = await repository.findById(video.video_id);
+    const noEntity = await repository
+      .ignoreSoftDeleted()
+      .findById(video.video_id);
     expect(noEntity).toBeNull();
   });
 });

@@ -1,5 +1,8 @@
 import { Either } from '../../shared/domain/either';
-import { ISearchableRepository } from '../../shared/domain/repository/repository.interface';
+import {
+  IRepositoryScope,
+  ISearchableRepository,
+} from '../../shared/domain/repository/repository.interface';
 import {
   SearchParams as DefaultSearchParams,
   SearchParamsConstructorProps,
@@ -79,9 +82,10 @@ export class CastMemberSearchResult extends DefaultSearchResult<CastMember> {}
 
 export interface ICastMemberRepository
   extends ISearchableRepository<
-    CastMember,
-    CastMemberId,
-    CastMemberFilter,
-    CastMemberSearchParams,
-    CastMemberSearchResult
-  > {}
+      CastMember,
+      CastMemberId,
+      CastMemberFilter,
+      CastMemberSearchParams,
+      CastMemberSearchResult
+    >,
+    IRepositoryScope {}

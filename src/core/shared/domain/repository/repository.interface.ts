@@ -4,6 +4,7 @@ import { SearchParams, SortDirection } from './search-params';
 import { SearchResult } from './search-result';
 
 export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
+  sortableFields: string[];
   insert(entity: E): Promise<void>;
   bulkInsert(entities: E[]): Promise<void>;
   findById(id: ID): Promise<E | null>;
@@ -26,10 +27,6 @@ export interface IRepository<E extends AggregateRoot, ID extends ValueObject> {
   getEntity(): new (...args: any[]) => E;
 }
 
-//category.props.name
-
-//Entidade e Objetos
-
 export interface ISearchableRepository<
   A extends AggregateRoot,
   AggregateId extends ValueObject,
@@ -39,4 +36,10 @@ export interface ISearchableRepository<
 > extends IRepository<A, AggregateId> {
   sortableFields: string[];
   search(props: SearchInput): Promise<SearchOutput>;
+}
+
+export interface IRepositoryScope {
+  scopes: string[];
+  ignoreSoftDeleted(): ThisType<this>;
+  clearScopes(): ThisType<this>;
 }

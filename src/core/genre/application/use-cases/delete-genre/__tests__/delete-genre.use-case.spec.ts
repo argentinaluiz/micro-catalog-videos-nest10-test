@@ -33,6 +33,6 @@ describe('DeleteGenreUseCase Unit Tests', () => {
     ];
     repository.items = items;
     await useCase.execute(items[0].genre_id.id);
-    expect(repository.findAll()).resolves.toHaveLength(0);
+    expect(repository.ignoreSoftDeleted().findAll()).resolves.toHaveLength(0);
   });
 });

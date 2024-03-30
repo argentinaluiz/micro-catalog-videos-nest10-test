@@ -24,6 +24,6 @@ describe('DeleteVideoUseCase Unit Tests', () => {
     const items = [Video.fake().aVideoWithAllMedias().build()];
     repository.items = items;
     await useCase.execute(items[0].video_id.id);
-    expect(repository.findAll()).resolves.toHaveLength(0);
+    expect(repository.ignoreSoftDeleted().findAll()).resolves.toHaveLength(0);
   });
 });

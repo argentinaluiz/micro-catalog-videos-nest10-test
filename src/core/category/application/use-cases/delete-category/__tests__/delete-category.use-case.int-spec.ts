@@ -29,7 +29,9 @@ describe('DeleteCategoryUseCase Integration Tests', () => {
     const category = Category.fake().aCategory().build();
     await repository.insert(category);
     await useCase.execute(category.category_id.id);
-    const noEntity = await repository.findById(category.category_id);
+    const noEntity = await repository
+      .ignoreSoftDeleted()
+      .findById(category.category_id);
     expect(noEntity).toBeNull();
   });
 });

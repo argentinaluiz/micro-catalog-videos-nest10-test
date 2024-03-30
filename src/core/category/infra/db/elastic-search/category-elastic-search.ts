@@ -1,9 +1,5 @@
 import { ElasticsearchService } from '@nestjs/elasticsearch';
-import {
-  CategorySearchParams,
-  CategorySearchResult,
-  ICategoryRepository,
-} from '../../../domain/category.repository';
+import { ICategoryRepository } from '../../../domain/category.repository';
 import { Category, CategoryId } from '../../../domain/category.aggregate';
 import {
   GetGetResult,
@@ -71,6 +67,7 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     private readonly esClient: ElasticsearchService,
     private index: string,
   ) {}
+  scopes: string[] = [];
   sortableFields: string[] = ['name', 'created_at'];
   sortableFieldsMap: { [key: string]: string } = {
     name: 'category_name',
@@ -98,31 +95,26 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   }
 
   async findById(id: CategoryId): Promise<Category | null> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
@@ -153,13 +145,6 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
             },
           },
         ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
-            },
-          },
-        ],
       },
     };
 
@@ -180,31 +165,19 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
         },
       });
     }
-
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
-      query,
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
-    const document = docs.find((doc) => {
-      if (filter.category_id) {
-        return doc._id === filter.category_id.id;
-      }
-      if (filter.is_active !== undefined) {
-        return doc._source!.is_active === filter.is_active;
-      }
-      return false;
-    });
 
-    if (!document) {
+    if (!docs.length) {
       return null;
     }
 
-    return CategoryElasticSearchMapper.toEntity(
-      document._id,
-      document._source!,
-    );
+    return CategoryElasticSearchMapper.toEntity(docs[0]._id, docs[0]._source!);
   }
 
   async findBy(
@@ -226,13 +199,6 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
             },
           },
         ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
-            },
-          },
-        ],
       },
     };
 
@@ -253,10 +219,10 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
         },
       });
     }
-
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
-      query,
+      query: scopedQuery,
       sort:
         order && this.sortableFieldsMap.hasOwnProperty(order.field)
           ? { [this.sortableFieldsMap[order.field]]: order.direction }
@@ -269,26 +235,21 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   }
 
   async findAll(): Promise<Category[]> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
     return result.hits.hits.map((hit) =>
       CategoryElasticSearchMapper.toEntity(hit._id, hit._source!),
@@ -298,31 +259,26 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   async findByIds(
     ids: CategoryId[],
   ): Promise<{ exists: Category[]; not_exists: CategoryId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
@@ -337,31 +293,26 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   async existsById(
     ids: CategoryId[],
   ): Promise<{ exists: CategoryId[]; not_exists: CategoryId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CategoryDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       _source: false,
     });
 
@@ -377,70 +328,141 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
   }
 
   async update(entity: Category): Promise<void> {
+    const query = {
+      bool: {
+        should: [
+          {
+            match: {
+              _id: entity.category_id.id,
+            },
+          },
+          {
+            nested: {
+              path: 'categories',
+              query: {
+                match: {
+                  'categories.category_id': entity.category_id.id,
+                },
+              },
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.updateByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: entity.category_id.id,
-              },
-            },
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       script: {
         source: `
-          ctx._source.category_name = params.category_name;
-          ctx._source.description = params.description;
-          ctx._source.is_active = params.is_active;
-          ctx._source.created_at = params.created_at;
-          ctx._source.deleted_at = params.deleted_at;
+          if (ctx._source.containsKey('categories')) {
+            for(item in ctx._source.categories) {
+              if (item.category_id == params.category_id) {
+                item.category_name = params.category_name;
+                item.is_active = params.is_active;
+                item.deleted_at = params.deleted_at;
+              }
+            }
+          }else{
+            ctx._source.category_name = params.category_name;
+            ctx._source.description = params.description; 
+            ctx._source.is_active = params.is_active;
+            ctx._source.created_at = params.created_at;
+            ctx._source.deleted_at = params.deleted_at;
+          }  
         `,
         params: {
+          category_id: entity.category_id.id,
           ...CategoryElasticSearchMapper.toDocument(entity),
         },
       },
       refresh: true,
     });
 
-    if (response.total !== 1) {
+    if (response.total === 0) {
       throw new NotFoundError(entity.category_id.id, this.getEntity());
     }
   }
 
-  async delete(id: CategoryId): Promise<void> {
-    const response = await this.esClient.deleteByQuery({
-      index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
+  async hasOnlyOneActivateInRelated(categoryId: CategoryId): Promise<boolean> {
+    const query = {
+      bool: {
+        must: [
+          {
+            nested: {
+              path: 'categories',
+              query: {
+                bool: {
+                  must: [
+                    {
+                      match: {
+                        'categories.category_id': categoryId.id,
+                      },
+                    },
+                    {
+                      match: {
+                        'categories.is_active': true,
+                      },
+                    },
+                  ],
+                  must_not: [
+                    {
+                      exists: {
+                        field: 'categories.deleted_at',
+                      },
+                    },
+                  ],
+                },
               },
             },
-            {
-              match: {
-                type: CATEGORY_DOCUMENT_TYPE_NAME,
-              },
+          },
+        ],
+        filter: {
+          script: {
+            script: {
+              source: `
+                  def count = 0;
+                  for (item in doc['categories__is_active']) {
+                      if (item == true) {
+                          count = count + 1;
+                      }
+                  }
+                  return count == 1;
+            `,
             },
-          ],
+          },
         },
       },
+    };
+    const result = await this.esClient.search<CategoryDocument>({
+      index: this.index,
+      query,
+    });
+    return (result.hits.total as SearchTotalHits).value >= 1;
+  }
+
+  async delete(id: CategoryId): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: CATEGORY_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    const scopedQuery = this.applyScopes(query);
+    const response = await this.esClient.deleteByQuery({
+      index: this.index,
+      query: scopedQuery,
       refresh: true,
     });
     if (response.deleted !== 1) {
@@ -448,73 +470,31 @@ export class CategoryElasticSearchRepository implements ICategoryRepository {
     }
   }
 
-  async search(props: CategorySearchParams): Promise<CategorySearchResult> {
-    const offset = (props.page - 1) * props.per_page;
-    const limit = props.per_page;
+  ignoreSoftDeleted(): CategoryElasticSearchRepository {
+    this.scopes.push('ignore-soft-deleted');
+    return this;
+  }
+  clearScopes(): CategoryElasticSearchRepository {
+    this.scopes = [];
+    return this;
+  }
 
-    const query: QueryDslQueryContainer = {
-      bool: {
-        must: [
-          {
-            match: {
-              type: CATEGORY_DOCUMENT_TYPE_NAME,
-            },
+  protected applyScopes(query: QueryDslQueryContainer) {
+    return this.scopes.includes('ignore-soft-deleted')
+      ? {
+          ...query,
+          bool: {
+            ...query.bool,
+            must_not: [
+              {
+                exists: {
+                  field: 'deleted_at',
+                },
+              },
+            ],
           },
-        ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
-            },
-          },
-        ],
-      },
-    };
-
-    if (props.filter) {
-      if (props.filter.name) {
-        //@ts-expect-error - must is an array
-        query.bool.must.push({
-          wildcard: {
-            category_name: {
-              value: `*${props.filter.name}*`,
-              case_insensitive: true,
-            },
-          },
-        });
-      }
-
-      if (props.filter.is_active !== undefined) {
-        //@ts-expect-error - must is an array
-        query.bool.must.push({
-          match: {
-            is_active: props.filter.is_active,
-          },
-        });
-      }
-    }
-
-    const result = await this.esClient.search({
-      index: this.index,
-      from: offset,
-      size: limit,
-      sort:
-        props.sort && this.sortableFieldsMap.hasOwnProperty(props.sort)
-          ? { [this.sortableFieldsMap[props.sort]]: props.sort_dir! }
-          : { created_at: 'desc' },
-      query,
-    });
-    const docs = result.hits.hits as GetGetResult<CategoryDocument>[];
-    const entities = docs.map((doc) =>
-      CategoryElasticSearchMapper.toEntity(doc._id, doc._source!),
-    );
-    const total = result.hits.total as SearchTotalHits;
-    return new CategorySearchResult({
-      total: total.value,
-      current_page: props.page,
-      per_page: props.per_page,
-      items: entities,
-    });
+        }
+      : query;
   }
 
   getEntity(): new (...args: any[]) => Category {

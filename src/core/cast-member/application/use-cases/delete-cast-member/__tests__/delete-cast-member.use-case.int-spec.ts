@@ -32,7 +32,9 @@ describe('DeleteCastMemberUseCase Integration Tests', () => {
     const castMember = CastMember.fake().aDirector().build();
     await repository.insert(castMember);
     await useCase.execute(castMember.cast_member_id.id);
-    const noEntity = await repository.findById(castMember.cast_member_id);
+    const noEntity = await repository
+      .ignoreSoftDeleted()
+      .findById(castMember.cast_member_id);
     expect(noEntity).toBeNull();
   });
 });

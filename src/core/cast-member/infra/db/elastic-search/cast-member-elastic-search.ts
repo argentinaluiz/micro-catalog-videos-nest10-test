@@ -16,6 +16,7 @@ import {
 import { NotFoundError } from '../../../../shared/domain/errors/not-found.error';
 import { CastMemberType } from '../../../domain/cast-member-type.vo';
 import { LoadEntityError } from '../../../../shared/domain/validators/validation.error';
+import { SortDirection } from '../../../../shared/domain/repository/search-params';
 
 export const CAST_MEMBER_DOCUMENT_TYPE_NAME = 'CastMember';
 
@@ -84,6 +85,7 @@ export class CastMemberElasticSearchRepository
     private readonly esClient: ElasticsearchService,
     private index: string,
   ) {}
+  scopes: string[] = [];
   sortableFields: string[] = ['name', 'created_at'];
   sortableFieldsMap: { [key: string]: string } = {
     name: 'cast_member_name',
@@ -111,31 +113,26 @@ export class CastMemberElasticSearchRepository
   }
 
   async findById(id: CastMemberId): Promise<CastMember | null> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
@@ -154,26 +151,21 @@ export class CastMemberElasticSearchRepository
   }
 
   async findAll(): Promise<CastMember[]> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
     return result.hits.hits.map((hit) =>
       CastMemberElasticSearchMapper.toEntity(hit._id, hit._source!),
@@ -183,31 +175,26 @@ export class CastMemberElasticSearchRepository
   async findByIds(
     ids: CastMemberId[],
   ): Promise<{ exists: CastMember[]; not_exists: CastMemberId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
     });
 
     const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
@@ -219,34 +206,125 @@ export class CastMemberElasticSearchRepository
     };
   }
 
+  async findOneBy(filter: {
+    cast_member_id?: CastMemberId;
+  }): Promise<CastMember | null> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.cast_member_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.cast_member_id.id,
+        },
+      });
+    }
+
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<CastMemberDocument>({
+      index: this.index,
+      query: scopedQuery,
+    });
+
+    const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
+
+    if (!docs.length) {
+      return null;
+    }
+
+    return CastMemberElasticSearchMapper.toEntity(
+      docs[0]._id,
+      docs[0]._source!,
+    );
+  }
+
+  async findBy(
+    filter: {
+      cast_member_id?: CastMemberId;
+      is_active?: boolean;
+    },
+    order?: {
+      field: 'name' | 'created_at';
+      direction: SortDirection;
+    },
+  ): Promise<CastMember[]> {
+    const query: QueryDslQueryContainer = {
+      bool: {
+        must: [
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+
+    if (filter.cast_member_id) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          _id: filter.cast_member_id.id,
+        },
+      });
+    }
+
+    if (filter.is_active !== undefined) {
+      //@ts-expect-error - must is an array
+      query.bool.must.push({
+        match: {
+          is_active: filter.is_active,
+        },
+      });
+    }
+    const scopedQuery = this.applyScopes(query);
+    const result = await this.esClient.search<CastMemberDocument>({
+      index: this.index,
+      query: scopedQuery,
+      sort:
+        order && this.sortableFieldsMap.hasOwnProperty(order.field)
+          ? { [this.sortableFieldsMap[order.field]]: order.direction }
+          : undefined,
+    });
+
+    return result.hits.hits.map((hit) =>
+      CastMemberElasticSearchMapper.toEntity(hit._id, hit._source!),
+    );
+  }
+
   async existsById(
     ids: CastMemberId[],
   ): Promise<{ exists: CastMemberId[]; not_exists: CastMemberId[] }> {
+    const query = {
+      bool: {
+        must: [
+          {
+            ids: {
+              values: ids.map((id) => id.id),
+            },
+          },
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const result = await this.esClient.search<CastMemberDocument>({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: ids.map((id) => id.id),
-              },
-            },
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       _source: false,
     });
 
@@ -262,35 +340,30 @@ export class CastMemberElasticSearchRepository
   }
 
   async update(entity: CastMember): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: entity.cast_member_id.id,
+            },
+          },
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.updateByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              ids: {
-                values: entity.cast_member_id.id,
-              },
-            },
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-          must_not: [
-            {
-              exists: {
-                field: 'deleted_at',
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       script: {
         source: `
           ctx._source.cast_member_name = params.cast_member_name;
-          ctx._source.cast_member_type = params.type;
+          ctx._source.cast_member_type = params.cast_member_type;
           ctx._source.created_at = params.created_at;
           ctx._source.deleted_at = params.deleted_at;
         `,
@@ -307,24 +380,26 @@ export class CastMemberElasticSearchRepository
   }
 
   async delete(id: CastMemberId): Promise<void> {
+    const query = {
+      bool: {
+        must: [
+          {
+            match: {
+              _id: id.id,
+            },
+          },
+          {
+            match: {
+              type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
+            },
+          },
+        ],
+      },
+    };
+    const scopedQuery = this.applyScopes(query);
     const response = await this.esClient.deleteByQuery({
       index: this.index,
-      query: {
-        bool: {
-          must: [
-            {
-              match: {
-                _id: id.id,
-              },
-            },
-            {
-              match: {
-                type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-              },
-            },
-          ],
-        },
-      },
+      query: scopedQuery,
       refresh: true,
     });
     if (response.deleted !== 1) {
@@ -342,13 +417,6 @@ export class CastMemberElasticSearchRepository
           {
             match: {
               type: CAST_MEMBER_DOCUMENT_TYPE_NAME,
-            },
-          },
-        ],
-        must_not: [
-          {
-            exists: {
-              field: 'deleted_at',
             },
           },
         ],
@@ -377,6 +445,7 @@ export class CastMemberElasticSearchRepository
         });
       }
     }
+    const scopedQuery = this.applyScopes(query);
 
     const result = await this.esClient.search({
       index: this.index,
@@ -386,7 +455,7 @@ export class CastMemberElasticSearchRepository
         props.sort && this.sortableFieldsMap.hasOwnProperty(props.sort)
           ? { [this.sortableFieldsMap[props.sort]]: props.sort_dir! }
           : { created_at: 'desc' },
-      query,
+      query: scopedQuery,
     });
     const docs = result.hits.hits as GetGetResult<CastMemberDocument>[];
     const entities = docs.map((doc) =>
@@ -399,6 +468,33 @@ export class CastMemberElasticSearchRepository
       per_page: props.per_page,
       items: entities,
     });
+  }
+
+  ignoreSoftDeleted(): CastMemberElasticSearchRepository {
+    this.scopes.push('ignore-soft-deleted');
+    return this;
+  }
+  clearScopes(): CastMemberElasticSearchRepository {
+    this.scopes = [];
+    return this;
+  }
+
+  protected applyScopes(query: QueryDslQueryContainer) {
+    return this.scopes.includes('ignore-soft-deleted')
+      ? {
+          ...query,
+          bool: {
+            ...query.bool,
+            must_not: [
+              {
+                exists: {
+                  field: 'deleted_at',
+                },
+              },
+            ],
+          },
+        }
+      : query;
   }
 
   getEntity(): new (...args: any[]) => CastMember {
